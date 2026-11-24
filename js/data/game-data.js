@@ -71,5 +71,19 @@ const EVENTS = [
   {id:'tech',    t:'💡 신기술 개발',      text:'톱니나라가 새 기술을 개발했어요. 반도체가 3개 늘었어요.', kind:'res', nation:'gear', res:'chip', n:3},
 ];
 
+/* 나라 개발 — 건물
+   한 나라에 종류마다 1개씩 지을 수 있고, 게임이 끝날 때까지 남아요.
+   cost   : 짓는 데 드는 자원 (한 나라 자원만으로는 못 짓게 섞어 두었어요)
+   effect : 'income' 다음 라운드부터 우리 특산 자원을 n개 더 받아요
+            'tech'   지은 뒤 만드는 물건마다 n점 더 받아요
+            'port'   지은 뒤 거래가 성공할 때마다 n점 더 받아요 */
+const BUILDINGS = [
+  {id:'plant', name:'공장 확장', i:'🏗️', cost:{wood:2, ore:2, oil:1}, effect:'income', n:3, desc:'다음 라운드부터 우리 특산 자원을 3개 더 받아요.'},
+  {id:'lab',   name:'연구소',   i:'🔬', cost:{chip:2, oil:1, wood:1}, effect:'tech',   n:1, desc:'지은 뒤 만드는 물건마다 1점씩 더 받아요.'},
+  {id:'port',  name:'항구',     i:'⚓', cost:{wood:3, ore:1, fish:1}, effect:'port',   n:1, desc:'지은 뒤 거래가 성공할 때마다 1점씩 더 받아요.'},
+];
+/* 건물을 지으면 바로 받는 점수 */
+const BUILD_PT = 2;
+
 /* 별명 최대 글자 수 */
 const NICK_MAX = 6;

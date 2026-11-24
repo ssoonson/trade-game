@@ -45,7 +45,9 @@ function updateTeacher(){
       <div class="list">${evList}</div>
     </section>
   </div>
-  <section class="card" style="display:grid;gap:14px"><div class="row" style="justify-content:space-between"><h3>나라별 점수판</h3><span class="small muted">점수는 물건 점수 + 보너스</span></div>${scoreTable()}</section>
+  <section class="card" style="display:grid;gap:14px"><div class="row" style="justify-content:space-between"><h3>나라별 점수판</h3><span class="small muted">점수는 물건 점수 + 보너스 + 개발 점수</span></div>${scoreTable()}</section>
+  <section class="card" style="display:grid;gap:12px"><div class="row" style="justify-content:space-between"><h3>나라별 무역 계획서</h3><span class="small muted">✔는 실제로 이룬 것</span></div>
+    <div class="list">${NATIONS.map(n => `<div class="offer"><div>${nTag(n.id)}</div>${planCheck(n.id)}</div>`).join('')}</div></section>
   <div class="teach">
     <section class="card" style="display:grid;gap:14px"><h3>라운드별 점수 합계</h3>${roundBars()}</section>
     <section class="card" style="display:grid;gap:10px"><h3>최근 성공한 거래</h3>${feedHtml}</section>

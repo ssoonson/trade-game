@@ -5,11 +5,12 @@
 const RK = Object.keys(RES);
 const NI = Object.fromEntries(NATIONS.map(n => [n.id, n]));
 const II = Object.fromEntries(ITEMS.map(x => [x.id, x]));
+const BI = Object.fromEntries(BUILDINGS.map(x => [x.id, x]));
 
 /* ================= 상태 ================= */
 const S = {
   mode:'connecting', loaded:false, slow:false, dbError:false,
-  game:null, trades:[], makes:[],
+  game:null, trades:[], makes:[], builds:[], plans:{}, planDraft:null,
   me:null, nick:'', view:'game', canTeach:false, canWrite:null, busy:false,
   draft:{to:'', give:{}, get:{}}, blockPick:'field', confirmReset:false,
   sheet:null, picker:false, players:{}, online:null, offset:0, join:null, fbError:false, setupMsg:'', setupBusy:false, pickSel:null, near:null, seenEvents:new Set(), banner:null,
@@ -44,7 +45,18 @@ function cleanGame(d){
 function cleanTrade(id, d){
   if (!d || !NI[d.from] || !NI[d.to] || d.from === d.to) return null;
   return {id, r:Number(d.r)||0, from:d.from, to:d.to, give:cleanBag(d.give), get:cleanBag(d.get),
-    status:['pending','accepted','rejected','cancelled'].includes(d.status) ? d.status : 'pending', at:Number(d.at)||0};
+    status:['pending','accepted','rejected','cancelled'].includes(d.status) ? d.status : 'pending', at:Number(d.at)||0, doneAt:Number(d.doneAt)||0};
+}
+function cleanBuild(id, d){
+  if (!d || !NI[d.nation] || !BI[d.b]) return null;
+  return {id, r:Number(d.r)||0, nation:d.nation, b:d.b, at:Number(d.at)||0};
+}
+function cleanPlan(nid, d){
+  if (!d || !NI[nid] || typeof d.target !== 'string') return null;
+  const [kind, id] = d.target.split(':');
+  if (!((kind === 'item' && II[id]) || (kind === 'build' && BI[id]))) return null;
+  const from = {}; if (d.from && typeof d.from === 'object') for (const k of RK) if (NI[d.from[k]] && d.from[k] !== nid) from[k] = d.from[k];
+  return {nation:nid, target:d.target, from, note:typeof d.note === 'string' ? d.note.slice(0, 80) : '', r:Number(d.r)||0, at:Number(d.at)||0};
 }
 function cleanMake(id, d){
   if (!d || !NI[d.nation] || !II[d.item]) return null;
@@ -62,6 +74,10 @@ function inv(nid, r){
     else if (t.to === nid){ add(b, t.give); sub(b, t.get); }
   }
   for (const m of S.makes) if (m.r === r && m.nation === nid) sub(b, II[m.item].cost);
+  for (const x of S.builds) if (x.nation === nid){
+    if (x.r === r) sub(b, BI[x.b].cost);
+    else if (x.r < r && BI[x.b].effect === 'income') b[NI[nid].spec] += BI[x.b].n;
+  }
   return b;
 }
 function locked(nid, r){ const b = zero(); for (const t of S.trades) if (t.r === r && t.status === 'pending' && t.from === nid) add(b, t.give); return b; }
@@ -71,7 +87,15 @@ function score(nid, r){
   const pts = ms.reduce((s, m) => s + II[m.item].pt, 0);
   const kinds = new Set(ms.map(m => m.item)).size;
   const bonus = kinds >= BONUS_KINDS ? BONUS : 0;
-  return {pts, kinds, bonus, total:pts + bonus, count:ms.length};
+  let dev = 0;
+  for (const x of S.builds) if (x.nation === nid){
+    const B = BI[x.b];
+    if (x.r === r) dev += BUILD_PT;
+    if (x.r > r) continue;
+    if (B.effect === 'tech') dev += B.n * ms.filter(m => m.at > x.at).length;
+    if (B.effect === 'port') dev += B.n * S.trades.filter(t => t.r === r && t.status === 'accepted' && (t.from === nid || t.to === nid) && (t.doneAt || t.at) > x.at).length;
+  }
+  return {pts, kinds, bonus, dev, total:pts + bonus + dev, count:ms.length};
 }
 const totalScore = nid => [1,2,3].reduce((s, r) => s + score(nid, r).total, 0);
 const roundTotal = r => NATIONS.reduce((s, n) => s + score(n.id, r).total, 0);
@@ -82,6 +106,11 @@ function evInfo(e){
   if (p) return {t:p.t, text:p.text};
   return {t:'🧱 보호 무역', text:`${NI[e.nation].name}가 자기 나라 산업을 지키려고 이번 라운드 동안 다른 나라와의 거래를 막았어요. ${NI[e.nation].name}로 가는 다리도 닫혔어요.`};
 }
+const builtOf = (nid, bid) => S.builds.find(x => x.nation === nid && x.b === bid) || null;
+const planOf = nid => S.plans[nid] || null;
+/* 계획서 목표에 필요한 자원 */
+const targetCost = t => { const [k, id] = (t || '').split(':'); return k === 'item' ? (II[id]?.cost || {}) : k === 'build' ? (BI[id]?.cost || {}) : {}; };
+const targetName = t => { const [k, id] = (t || '').split(':'); return k === 'item' ? (II[id] ? `${II[id].i} ${II[id].name}` : '') : k === 'build' ? (BI[id] ? `${BI[id].i} ${BI[id].name}` : '') : ''; };
 const playing = () => S.game && S.game.phase === 'play' && round() >= 1;
 const writable = () => S.canWrite !== false;
 const gateOpen = nid => !!(S.game && S.game.phase === 'play' && S.game.tradeOpen && !blockedIn(round()).has(nid));

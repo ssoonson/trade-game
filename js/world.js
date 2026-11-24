@@ -51,6 +51,7 @@ function buildBase(){
       if (Math.abs(x - (n.rx + 6)) < 2.6 && y > n.ry + 1.8 && y < n.ry + 8.2) continue;
       if (Math.abs(x - (n.rx + 6)) < 2 && (n.top ? y > n.ry + 8 : y < n.ry + 2)) continue;
       if (x < n.rx + 5 && y < n.ry + 1.8) continue;
+      if (n.plots.some(p => Math.abs(x - p.x) < 1.7 && Math.abs(y - p.y) < 1.5)) continue;
       emoji(g, n.decor[i % n.decor.length], x * T, y * T, 20);
     }
     // 성(공장)
@@ -64,6 +65,12 @@ function buildBase(){
     emoji(g, '🏭', bx + T, by - 4, 18);
     sign(g, `${n.flag} ${n.name}`, (n.rx + 2.6) * T, (n.ry + .9) * T, n.color, 18);
     sign(g, '공장', bx + T, by + 2 * T + 12, n.color, 13);
+    // 건물 자리 (공사 예정지)
+    for (const p of n.plots){
+      const px = p.x * T, py = p.y * T;
+      g.fillStyle = 'rgba(150,110,60,.28)'; roundRect(g, px - 30, py - 20, 60, 34, 10); g.fill();
+      g.setLineDash([5, 4]); g.strokeStyle = 'rgba(110,80,40,.6)'; g.lineWidth = 2; g.stroke(); g.setLineDash([]);
+    }
     // 세관(거래소)
     const sx = n.stall.x * T, sy = n.stall.y * T;
     g.fillStyle = 'rgba(0,0,0,.2)'; g.fillRect(sx - 30, sy - 2, 64, 18);
@@ -79,6 +86,41 @@ function buildBase(){
   g.fillStyle = '#fffaf0'; g.fillRect(gx - 20, gy - 34, 16, 20); g.fillRect(gx + 2, gy - 32, 18, 14);
   sign(g, '📜 게시판', gx, gy - 56, '#6e4a2a', 13);
   base = c;
+}
+/* 지은 건물 그리기 */
+function drawBuilding(g, cx, cy, B, color, t, grow){
+  g.save(); g.translate(cx, cy); g.scale(grow, grow);
+  g.lineWidth = 2; g.strokeStyle = '#4b3424'; g.lineJoin = 'round';
+  g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(0, 12, 32, 7, 0, 0, Math.PI * 2); g.fill();
+  if (B.effect === 'income'){            // 공장 확장: 톱니 지붕 + 굴뚝 연기
+    g.fillStyle = '#f6f0e4'; g.fillRect(-26, -16, 52, 28); g.strokeRect(-26, -16, 52, 28);
+    g.fillStyle = color; g.beginPath(); g.moveTo(-28, -16); for (let k = 0; k < 4; k++){ g.lineTo(-28 + k * 14 + 14, -28); g.lineTo(-28 + k * 14 + 14, -16); } g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = '#8a6a55'; g.fillRect(14, -40, 8, 24); g.strokeRect(14, -40, 8, 24);
+    g.fillStyle = 'rgba(255,255,255,.85)'; for (let k = 0; k < 3; k++){ const ph = (t * .6 + k / 3) % 1; g.beginPath(); g.arc(18 + ph * 10, -44 - ph * 22, 4 + ph * 5, 0, Math.PI * 2); g.globalAlpha = 1 - ph; g.fill(); } g.globalAlpha = 1;
+    g.fillStyle = '#9fd3f0'; for (const x of [-18, -4, 10]) g.fillRect(x, -6, 9, 8);
+  } else if (B.effect === 'tech'){       // 연구소: 둥근 지붕
+    g.fillStyle = '#f6f0e4'; g.fillRect(-24, -12, 48, 24); g.strokeRect(-24, -12, 48, 24);
+    g.fillStyle = '#bfe6f5'; g.beginPath(); g.arc(0, -12, 18, Math.PI, 0); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = color; g.fillRect(-24, -14, 48, 5); g.strokeRect(-24, -14, 48, 5);
+    g.fillStyle = '#ffd447'; g.beginPath(); g.arc(0, -24, 3 + Math.sin(t * 4) * 1, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#6e4a2a'; g.fillRect(-5, 0, 10, 12);
+  } else {                               // 항구: 창고 + 닻
+    g.fillStyle = '#c99158'; g.fillRect(-26, -14, 52, 26); g.strokeRect(-26, -14, 52, 26);
+    g.fillStyle = color; g.beginPath(); g.moveTo(-30, -14); g.lineTo(0, -30); g.lineTo(30, -14); g.closePath(); g.fill(); g.stroke();
+    g.strokeStyle = '#fffaee'; g.lineWidth = 3; g.beginPath(); g.moveTo(0, -8); g.lineTo(0, 6); g.moveTo(-6, -4); g.lineTo(6, -4); g.moveTo(-8, 2); g.quadraticCurveTo(0, 10, 8, 2); g.stroke();
+    g.strokeStyle = '#4b3424'; g.lineWidth = 2; g.fillStyle = '#a16f3f'; g.fillRect(28, 0, 10, 10); g.strokeRect(28, 0, 10, 10);
+  }
+  g.restore();
+  if (grow > .95) sign(g, `${B.i} ${B.name}`, cx, cy + 26, color, 11);
+}
+function drawBuildings(g, t){
+  const now = Date.now();
+  for (const x of S.builds){
+    const n = NI[x.nation], k = BUILDINGS.findIndex(B => B.id === x.b), p = n && n.plots[k];
+    if (!p) continue;
+    const age = Math.max(0, (now - x.at) / 700), grow = age >= 1 ? 1 : 1 - Math.pow(1 - age, 3) * (1 - .2);
+    drawBuilding(g, p.x * T, p.y * T, BI[x.b], n.color, t, Math.min(1, grow));
+  }
 }
 function drawGates(g, t){
   NATIONS.forEach(n => {
@@ -110,6 +152,7 @@ function drawWorld(cv, mode, dt, t){
   } else { z = Math.min(cw / (W * T), ch / (H * T)); camX = W * T / 2; camY = H * T / 2; }
   g.translate(cw / 2 - camX * z, ch / 2 - camY * z); g.scale(z, z);
   g.imageSmoothingEnabled = true; g.drawImage(base, 0, 0);
+  drawBuildings(g, t);
   drawGates(g, t);
   const others = otherPlayers(dt);
   const chars = others.map(o => ({...o, you:false}));

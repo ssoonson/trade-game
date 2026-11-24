@@ -59,6 +59,7 @@ function updateGame(){
     <div class="right">
       <span class="glass scorebox"><span class="medal">${icon('star')}</span><span class="score">${sc}점</span><span class="small muted long">이번 라운드 · 합계 ${totalScore(S.me)}점</span></span>
       <button class="hbtn ${ic ? 'hot' : ''}" data-act="sheet" data-t="offers">${icon('mail')}<span>제안</span>${ic ? `<span class="badge">${ic}</span>` : ''}</button>
+      <button class="hbtn ${r === 1 && !planOf(S.me) && S.game?.phase === 'play' ? 'hot' : ''}" data-act="sheet" data-t="plan" aria-label="무역 계획서">${icon('note')}<span class="long">계획서</span></button>
       <button class="hbtn" data-act="sheet" data-t="board" aria-label="규칙">${icon('scroll')}<span class="long">규칙</span></button>
       <button class="hbtn" data-act="openPicker" aria-label="나라 바꾸기">${icon('swap')}<span class="long">나라 바꾸기</span></button>
     </div><div class="resbar" id="resbar"></div>`;
@@ -97,9 +98,10 @@ function sheetHtml(){
   const s = S.sheet, r = round();
   const head = (title, sub='') => `<div class="panel-h"><div><h2>${title}</h2>${sub ? `<p class="sub">${sub}</p>` : ''}</div><button class="x" data-act="close" aria-label="닫기">${icon('close')}</button></div>`;
   if (s.type === 'factory') return head(`${NI[S.me].name} 공장`, '자원을 모아 물건을 만들어요') + factoryHtml(r);
-  if (s.type === 'trade') return head(`${NI[s.to].flag} ${NI[s.to].name}와 거래`, `${NI[s.to].name}가 잘 만드는 자원: ${RES[NI[s.to].spec][1]} ${RES[NI[s.to].spec][0]}`) + tradeHtml(r, s.to);
+  if (s.type === 'trade') return head(`${NI[s.to].flag} ${NI[s.to].name} 세관`, `${NI[s.to].name}가 잘 만드는 자원: ${RES[NI[s.to].spec][1]} ${RES[NI[s.to].spec][0]}`) + tradeHtml(r, s.to);
   if (s.type === 'offers') return head('들어온 제안', '어디에서든 수락하거나 거절할 수 있어요') + offersHtml(r);
   if (s.type === 'board') return head('무역 광장 게시판') + boardHtml(r);
+  if (s.type === 'plan') return head(`${NI[S.me].name} 무역 계획서`, '무엇을 만들고, 모자란 자원을 어느 나라에서 구할지 정해요') + planHtml(r);
   return head('');
 }
 function needPlay(){
@@ -126,8 +128,49 @@ function factoryHtml(r){
   const dots = Array.from({length:BONUS_KINDS}, (_, i) => i).map(i => `<i class="${i < sc.kinds ? 'on' : ''}"></i>`).join('');
   return `<div class="sect"><span class="label">우리 창고</span>${stockHtml(r)}</div>
     <div class="sect"><span class="label">만들 수 있는 물건 · 빨간 자원이 모자라요</span><div class="items">${cards}</div></div>
+    <div class="sect"><span class="label">우리 나라 개발 · 건물은 게임이 끝날 때까지 남아요</span><div class="items">${buildCards(r, ok)}</div></div>
     <div class="scorebar"><span>이번 라운드 <span class="big">${sc.total}점</span></span>
-    <span class="small">물건 종류 <span class="dots">${dots}</span> ${sc.kinds}/${BONUS_KINDS} ${sc.bonus ? `<b style="color:var(--ok)">보너스 +${BONUS} 달성!</b>` : `(${BONUS_KINDS}가지면 +${BONUS})`}</span></div>`;
+    <span class="small">물건 종류 <span class="dots">${dots}</span> ${sc.kinds}/${BONUS_KINDS} ${sc.bonus ? `<b style="color:var(--ok)">보너스 +${BONUS} 달성!</b>` : `(${BONUS_KINDS}가지면 +${BONUS})`}</span>
+    ${sc.dev ? `<span class="small">개발 점수 +${sc.dev}</span>` : ''}</div>
+    ${r === 1 && !planOf(S.me) ? `<p class="lockbox">물건을 다 만들었으면 광장의 다른 나라 세관에서 <b>전시판</b>을 보고, 화면 위 <b>계획서</b> 버튼으로 무역 계획을 세워요. <button class="btn sm" data-act="sheet" data-t="plan">계획서 쓰기</button></p>` : ''}`;
+}
+function buildCards(r, ok){
+  const a = avail(S.me, r);
+  return BUILDINGS.map(B => {
+    const done = builtOf(S.me, B.id);
+    const cost = RK.filter(k => B.cost[k]).map(k => `<span class="chip ${!done && a[k] < B.cost[k] ? 'short' : ''}">${RES[k][1]}×${B.cost[k]}</span>`).join('');
+    return `<div class="item ${done ? 'built' : ''}"><div class="hd"><span class="ic" aria-hidden="true">${B.i}</span><span class="nm">${B.name}</span><span class="pt">+${BUILD_PT}점</span></div>
+      <p class="small">${esc(B.desc)}</p>
+      ${done ? `<p class="small" style="font-weight:700;color:var(--green-ink)">✔ ${done.r}라운드에 지었어요</p>` : `<div class="cost">${cost}</div>
+      <div class="row" style="justify-content:flex-end"><button class="btn ok sm" data-act="build" data-id="${B.id}" ${has(a, B.cost) && ok ? '' : 'disabled'}>짓기</button></div>`}</div>`;
+  }).join('');
+}
+/* 다른 나라 창고 전시판 */
+function exhibitHtml(r, to){
+  const a = avail(to, r), n = NI[to], blds = BUILDINGS.filter(B => builtOf(to, B.id));
+  return `<div class="sect"><span class="label">${n.flag} ${n.name} 창고 전시판 · 지금 가진 자원</span>
+    <div class="stock">${RK.map(k => `<div class="crate ${a[k] ? '' : 'zero'} ${k === n.spec ? 'spec' : ''}"><span class="top">${RES[k][1]} ${RES[k][0]}</span><span class="n">${a[k]}</span></div>`).join('')}</div>
+    <p class="small muted">개발한 건물: ${blds.length ? blds.map(B => `${B.i} ${B.name}`).join(', ') : '아직 없어요'}</p></div>`;
+}
+/* 무역 계획서 */
+function planNeeds(t){ const c = targetCost(t), a = avail(S.me, round()), need = {}; for (const k of RK) if ((c[k] || 0) > (a[k] || 0)) need[k] = c[k] - (a[k] || 0); return need; }
+function planHtml(r){
+  const np = needPlay(); if (np) return np;
+  const p = S.planDraft || {target:'', from:{}}, saved = planOf(S.me), ok = writable() && !S.busy;
+  const opt = (t, label, cost) => `<button class="opt ${p.target === t ? 'right' : ''}" data-act="planTarget" data-v="${t}">${label}<span class="small" style="display:block;font-family:var(--body)">${RK.filter(k => cost[k]).map(k => `${RES[k][1]}×${cost[k]}`).join(' ')}</span></button>`;
+  const targets = ITEMS.map(it => opt('item:' + it.id, `${it.i} ${it.name}`, it.cost)).join('') + BUILDINGS.filter(B => !builtOf(S.me, B.id)).map(B => opt('build:' + B.id, `${B.i} ${B.name}`, B.cost)).join('');
+  let needHtml = '';
+  if (p.target){
+    const need = planNeeds(p.target), ks = RK.filter(k => need[k]);
+    needHtml = ks.length ? `<div class="sect"><span class="label">2. 모자란 자원을 어느 나라에서 구할까요?</span><div class="list">${ks.map(k => `<div class="offer"><b>${RES[k][1]} ${RES[k][0]} ${need[k]}개 모자라요</b>
+      <div class="row" style="gap:6px">${NATIONS.filter(n => n.id !== S.me).map(n => `<button class="opt ${p.from[k] === n.id ? 'right' : ''}" style="min-height:40px;padding:4px 12px;font-size:.95rem" data-act="planFrom" data-res="${k}" data-n="${n.id}">${n.flag} ${n.name}${n.spec === k ? ' ★' : ''}</button>`).join('')}</div></div>`).join('')}</div>
+      <p class="small muted">★는 그 자원을 잘 만드는 나라예요. 광장 세관의 전시판에서 실제로 얼마나 가졌는지 확인해 봐요.</p></div>`
+      : `<p class="lockbox">지금 가진 자원으로 바로 만들 수 있어요! 공장에서 만들어 보세요.</p>`;
+  }
+  return `${saved ? `<p class="lockbox">저장된 계획: <b>${targetName(saved.target)}</b> · ${Object.keys(saved.from).length ? RK.filter(k => saved.from[k]).map(k => `${RES[k][1]} ← ${NI[saved.from[k]].name}`).join(', ') : '모자란 자원 없음'}</p>` : ''}
+    <div class="sect"><span class="label">1. 무엇을 만들거나 짓고 싶나요?</span><div class="row" style="gap:8px">${targets}</div></div>
+    ${needHtml}
+    <div class="row"><button class="btn" data-act="savePlan" ${p.target && ok ? '' : 'disabled'}>계획서 저장</button></div>`;
 }
 function offerSides(t, mine){
   return `<div class="swap"><div class="side"><span class="label">${mine ? '우리가 주는 것 (수출)' : `${NI[t.from].name}가 주는 것 (수입)`}</span><div class="cost">${bagChips(t.give)}</div></div>
@@ -137,7 +180,7 @@ function offerSides(t, mine){
 function tradeHtml(r, to){
   const np = needPlay(); if (np) return np;
   const bl = blockedIn(r);
-  if (!S.game.tradeOpen) return `<p class="lockbox">🚧 지금은 무역이 금지된 라운드예요. 세관 문이 닫혀 있어요. 우리 나라 자원만으로 물건을 만들어 보세요.</p>`;
+  if (!S.game.tradeOpen) return `<p class="lockbox">🚧 지금은 무역이 금지된 라운드라 거래는 못 해요. 대신 전시판을 보고 다음 라운드의 무역 계획을 세워 보세요.</p>${exhibitHtml(r, to)}<div class="row"><button class="btn" data-act="sheet" data-t="plan">무역 계획서 쓰기</button></div>`;
   if (bl.has(S.me)) return `<p class="lockbox bad">⛔ 이번 라운드에 우리 나라는 다른 나라와 거래할 수 없어요.</p>`;
   if (bl.has(to)) return `<p class="lockbox bad">⛔ ${NI[to].name}는 이번 라운드에 무역을 막았어요. 세관 문이 닫혀 있어요. 다른 나라에서 필요한 자원을 구해 보세요.</p>`;
   const ok = writable() && !S.busy, a = avail(S.me, r), dr = S.draft;
@@ -150,7 +193,7 @@ function tradeHtml(r, to){
   }).join('')}</div>`;
   const mine = S.trades.filter(t => t.r === r && t.from === S.me && t.to === to && t.status === 'pending');
   const theirs = S.trades.filter(t => t.r === r && t.from === to && t.to === S.me && t.status === 'pending').length;
-  return `<div class="sect"><span class="label">우리 창고</span>${stockHtml(r)}</div>
+  return `${exhibitHtml(r, to)}<div class="sect"><span class="label">우리 창고</span>${stockHtml(r)}</div>
     ${theirs ? `<p class="lockbox">${NI[to].name}가 보낸 제안이 ${theirs}건 있어요. <button class="btn sm" data-act="sheet" data-t="offers">제안 보기</button></p>` : ''}
     <div class="sect"><span class="label">우리가 줄 것 (수출)</span>${steps('give')}</div>
     <div class="sect"><span class="label">우리가 받고 싶은 것 (수입)</span>${steps('get')}</div>
@@ -198,12 +241,16 @@ function boardHtml(r){
       <li>라운드가 시작되면 우리 나라는 <b>자원</b>을 받아요. 나라마다 받는 자원이 달라요.</li>
       <li>우리 나라 <b>🏭 공장</b>에 가서 자원으로 물건을 만들면 점수를 얻어요.</li>
       <li>한 라운드에 <b>서로 다른 물건을 ${BONUS_KINDS}가지 이상</b> 만들면 보너스 <b>+${BONUS}점</b>!</li>
-      <li>다른 나라와 거래하려면 그 나라의 <b>세관</b>까지 걸어가거나, 그 나라 친구 옆에 가서 말을 걸어요.</li>
+      <li>공장에서 <b>건물을 지어 나라를 개발</b>할 수 있어요. 건물은 게임이 끝날 때까지 남아 계속 도움을 줘요.</li>
+      <li>다른 나라와 거래하려면 그 나라의 <b>세관</b>까지 걸어가거나, 그 나라 친구 옆에 가서 말을 걸어요. 세관의 <b>전시판</b>에서 그 나라 창고를 볼 수 있어요.</li>
+      <li>화면 위 <b>계획서</b> 버튼으로 무역 계획을 세워요. 1라운드에 써 두면 2라운드에 바로 거래하러 갈 수 있어요.</li>
       <li>무역이 금지되면 다리에 빨간 차단기가 내려와요.</li>
       <li>라운드가 끝나면 남은 자원은 사라지고 모두 자기 나라로 돌아가요.</li>
     </ul></div>
     <div class="sect"><span class="label">물건 만드는 법</span>
     <div class="items">${ITEMS.map(it => `<div class="item"><div class="hd"><span class="ic">${it.i}</span><span class="nm">${it.name}</span><span class="pt">${it.pt}점</span></div><div class="cost">${bagChips(it.cost)}</div></div>`).join('')}</div></div>
+    <div class="sect"><span class="label">나라 개발 건물</span>
+    <div class="items">${BUILDINGS.map(B => `<div class="item"><div class="hd"><span class="ic">${B.i}</span><span class="nm">${B.name}</span><span class="pt">+${BUILD_PT}점</span></div><p class="small">${esc(B.desc)}</p><div class="cost">${bagChips(B.cost)}</div></div>`).join('')}</div></div>
     <div class="sect"><span class="label">나라별 특산 자원</span><div class="cost">${NATIONS.map(n => `<span class="chip">${n.flag} ${n.name} → ${RES[n.spec][1]} ${RES[n.spec][0]}</span>`).join('')}</div></div>`;
 }
 

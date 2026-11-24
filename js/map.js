@@ -13,7 +13,8 @@ NATIONS.forEach((n, i) => {
   for (let y = ry; y < ry + 10; y++) for (let x = rx; x < rx + 12; x++){ tmap[ix(x, y)] = LAND; town[ix(x, y)] = i; }
   for (const y of (top ? [12, 13] : [20, 21])) for (const x of [rx + 5, rx + 6]){ tmap[ix(x, y)] = BRIDGE; town[ix(x, y)] = i; }
   for (let y = ry + 3; y <= ry + 4; y++) for (let x = rx + 5; x <= rx + 6; x++) tmap[ix(x, y)] = BLD;
-  Object.assign(n, {idx:i, rx, ry, top, home:{x:rx + 6, y:ry + 6.6}, fac:{x:rx + 6, y:ry + 4}, stall:{x:rx + 9.5, y:top ? 15.3 : 18.7}, bridgeY:top ? 12 : 20});
+  Object.assign(n, {idx:i, rx, ry, top, home:{x:rx + 6, y:ry + 6.6}, fac:{x:rx + 6, y:ry + 4}, stall:{x:rx + 9.5, y:top ? 15.3 : 18.7}, bridgeY:top ? 12 : 20,
+    plots:[{x:rx + 2.2, y:ry + 4.4}, {x:rx + 9.8, y:ry + 4.4}, {x:rx + 2.2, y:ry + 8}]});   // 건물 자리 (BUILDINGS 순서)
 });
 const BOARD = {x:30.5, y:16.9};
 

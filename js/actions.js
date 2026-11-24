@@ -13,7 +13,7 @@ async function guarded(fn){
   finally { S.busy = false; render(); }
 }
 function setGame(patch){ const g = {...(S.game || {gid:null, round:0, tradeOpen:false, phase:'lobby', endsAt:null, events:[]}), ...patch}; return guarded(() => store.setGame(g)); }
-function openSheet(s){ S.sheet = s; if (s && s.type === 'trade'){ if (S.draft.to !== s.to) S.draft = {to:s.to, give:{}, get:{}}; } keys.clear(); P.target = null; render(); }
+function openSheet(s){ S.sheet = s; if (s && s.type === 'trade'){ if (S.draft.to !== s.to) S.draft = {to:s.to, give:{}, get:{}}; } if (s && s.type === 'plan'){ const p = planOf(S.me); S.planDraft = p ? {target:p.target, from:{...p.from}} : (S.planDraft || {target:'', from:{}}); } keys.clear(); P.target = null; render(); }
 
 const ACT = {
   view: d => { location.hash = d.v; },
@@ -33,12 +33,31 @@ const ACT = {
   },
   /* 세계 */
   interact: () => { if (S.near) S.near.go(); },
-  sheet: d => { if (d.t === 'offers' || d.t === 'board') openSheet({type:d.t}); },
+  sheet: d => { if (['offers', 'board', 'plan'].includes(d.t)) openSheet({type:d.t}); },
   close: () => { S.sheet = null; render(); $('#world')?.focus(); },
   make: d => {
     const it = II[d.id], r = round(); if (!it || !playing() || !S.me) return;
     if (!has(avail(S.me, r), it.cost)) return toast('자원이 부족해요.');
     guarded(async () => { await store.addMake({gid:S.game.gid, r, nation:S.me, item:it.id, at:Date.now()}); toast(`${it.i} ${it.name}을(를) 만들었어요! +${it.pt}점`); });
+  },
+  build: d => {
+    const B = BI[d.id], r = round(); if (!B || !playing() || !S.me) return;
+    if (builtOf(S.me, B.id)) return toast('이미 지은 건물이에요.');
+    if (!has(avail(S.me, r), B.cost)) return toast('자원이 부족해요.');
+    guarded(async () => { await store.addBuild({gid:S.game.gid, r, nation:S.me, b:B.id, at:Date.now()}); toast(`${B.i} ${B.name}을(를) 지었어요! +${BUILD_PT}점`); });
+  },
+  planTarget: d => {
+    const t = d.v; if (!targetName(t)) return;
+    const from = {};
+    for (const k of RK) if ((targetCost(t)[k] || 0) > 0){ const n = NATIONS.find(x => x.spec === k && x.id !== S.me); if (n) from[k] = n.id; }
+    S.planDraft = {target:t, from}; render();
+  },
+  planFrom: d => { if (!S.planDraft || !RES[d.res] || !NI[d.n]) return; S.planDraft.from[d.res] = d.n; render(); },
+  savePlan: () => {
+    const p = S.planDraft; if (!p || !targetName(p.target) || !S.game?.gid) return toast('먼저 만들고 싶은 것을 골라요.');
+    const need = planNeeds(p.target), from = {};
+    for (const k of RK) if (need[k] && p.from[k]) from[k] = p.from[k];
+    guarded(async () => { await store.setPlan(S.me, {target:p.target, from, r:round(), at:Date.now()}); toast('무역 계획서를 저장했어요. 선생님 화면에도 보여요.'); });
   },
   step: d => {
     const side = d.side === 'give' ? 'give' : 'get', k = d.res; if (!RES[k]) return;

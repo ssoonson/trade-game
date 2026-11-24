@@ -83,7 +83,7 @@ function findNear(others){
   if (dist(P, me.stall) < 1.9) return {id:'own', label:'우리 세관: 들어온 제안 보기', go:() => openSheet({type:'offers'})};
   if (dist(P, BOARD) < 1.7) return {id:'board', label:'게시판 보기', go:() => openSheet({type:'board'})};
   for (const n of NATIONS) if (n.id !== S.me && dist(P, n.stall) < 1.9)
-    return {id:'stall-' + n.id, label:`${n.name} 세관에서 거래하기`, go:() => openSheet({type:'trade', to:n.id})};
+    return {id:'stall-' + n.id, label: gateOpen(n.id) ? `${n.name} 세관에서 거래하기` : `${n.name} 세관 전시판 보기`, go:() => openSheet({type:'trade', to:n.id})};
   let best = null, bd = 1.5;
   for (const o of others) if (o.n !== S.me){ const d = dist(P, o); if (d < bd){ bd = d; best = o; } }
   if (best){ const n = NI[best.n]; return {id:'p-' + best.peer, label:`${best.nm ? best.nm + ' · ' : ''}${n.name}와 거래하기`, go:() => openSheet({type:'trade', to:n.id})}; }

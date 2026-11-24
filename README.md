@@ -35,6 +35,7 @@ trade-game-web/
 | 나라별 탐험가 동물 | `js/data/game-data.js` | `NATIONS`의 `animal` (rabbit, penguin, mole, fox, bear, cat) |
 | 캐릭터 그림 바꾸기 | `assets/characters/` | `<동물>.png`(앞), `<동물>_side.png`(오른쪽을 보는 옆), `<동물>_back.png`(뒤). 같은 이름으로 덮어쓰면 돼요 |
 | 물건 종류, 필요한 자원, 점수 | `js/data/game-data.js` | `ITEMS` |
+| 나라 개발 건물(이름, 비용, 효과), 건물 점수 | `js/data/game-data.js` | `BUILDINGS`, `BUILD_PT` |
 | 보너스 점수, 보너스 기준 개수 | `js/data/game-data.js` | `BONUS`, `BONUS_KINDS` |
 | 사건 카드 추가·수정 | `js/data/game-data.js` | `EVENTS` (한 줄 복사 후 `id`만 다르게) |
 | 정리 질문, 실제 세계 연결, 수업 흐름 | `js/data/lesson-content.js` | `WRAP_QUESTIONS`, `WRAP_REAL_WORLD`, `CLASS_FLOW` |
