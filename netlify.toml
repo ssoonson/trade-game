@@ -1,0 +1,4 @@
+# Netlify 설정: 빌드 과정 없이 이 폴더를 그대로 웹에 올려요.
+[build]
+  publish = "."
+  command = ""
