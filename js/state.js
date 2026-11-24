@@ -8,17 +8,17 @@ const II = Object.fromEntries(ITEMS.map(x => [x.id, x]));
 const BI = Object.fromEntries(BUILDINGS.map(x => [x.id, x]));
 
 /* 앱 버전 — 고칠 때마다 올려요. 선생님 기기와 버전이 다르면 학생 화면에 '새로 고침' 안내가 떠요. */
-const APP_VERSION = '2026.11.24-1';
+const APP_VERSION = '2026.11.24-2';
 
 /* ================= 상태 ================= */
 const S = {
   mode:'connecting', loaded:false, slow:false, dbError:false,
   game:null, trades:[], makes:[], builds:[], plans:{}, planDraft:null, qdone:[], hires:[], ftas:[], upgrades:[], answers:[], notes:{}, rev:0, summaryShown:'',
-  me:null, nick:'', view:'game', canTeach:false, canWrite:null, busy:false,
+  me:null, nick:'', role:'', view:'game', canTeach:false, canWrite:null, busy:false,
   draft:{to:'', give:{}, get:{}}, blockPick:'field', confirmReset:false,
   sheet:null, picker:false, players:{}, online:null, offset:0, join:null, fbError:false, setupMsg:'', setupBusy:false, pickSel:null, near:null, seenEvents:new Set(), banner:null,
 };
-try { const m = localStorage.getItem('trade-me'); if (NI[m]) S.me = m; S.nick = (localStorage.getItem('trade-nick') || '').slice(0, NICK_MAX); } catch {}
+try { const m = localStorage.getItem('trade-me'); if (NI[m]) S.me = m; S.nick = (localStorage.getItem('trade-nick') || '').slice(0, NICK_MAX); const ro = localStorage.getItem('trade-role'); if (RO[ro]) S.role = ro; } catch {}
 const P = {x:0, y:0, dir:'down', moving:false, target:null, t:0};
 function goHome(){ if (S.me){ const h = NI[S.me].home; P.x = h.x; P.y = h.y; P.dir = 'down'; P.target = null; } }
 goHome();
@@ -42,10 +42,11 @@ const nTag = id => `<span class="nname nc-${id}">${NI[id].flag} ${NI[id].name}</
 
 function cleanGame(d){
   if (!d || typeof d !== 'object') return null;
-  const events = Array.isArray(d.events) ? d.events.filter(e => e && NI[e.nation] && (e.kind === 'block' || e.kind === 'tariff' || (e.kind === 'res' && RES[e.res])))
-    .map(e => ({r:Number(e.r)||0, kind:e.kind, nation:e.nation, res:e.kind === 'res' ? e.res : null, n:Math.max(-20, Math.min(20, Math.floor(Number(e.n)||0))), pid:typeof e.pid === 'string' ? e.pid : '', key:typeof e.key === 'string' ? e.key : ''})) : [];
+  const events = Array.isArray(d.events) ? d.events.filter(e => e && NI[e.nation] && (e.kind === 'block' || e.kind === 'tariff' || e.kind === 'fx' || (e.kind === 'res' && RES[e.res])))
+    .map(e => ({r:Number(e.r)||0, kind:e.kind, nation:e.nation, res:e.kind === 'res' ? e.res : null, n:Math.max(-20, Math.min(20, Math.floor(Number(e.n)||0))), pid:typeof e.pid === 'string' ? e.pid : '', key:typeof e.key === 'string' ? e.key : '', auto:!!e.auto})) : [];
   return {gid:typeof d.gid === 'string' ? d.gid : null, round:[0,1,2,3].includes(d.round) ? d.round : 0, tradeOpen:!!d.tradeOpen,
-    phase:['lobby','play','end'].includes(d.phase) ? d.phase : 'lobby', endsAt:Number(d.endsAt) || null, events, quiz:cleanQuiz(d.quiz), v:typeof d.v === 'string' ? d.v.slice(0, 30) : ''};
+    phase:['lobby','play','end'].includes(d.phase) ? d.phase : 'lobby', endsAt:Number(d.endsAt) || null, events, quiz:cleanQuiz(d.quiz), v:typeof d.v === 'string' ? d.v.slice(0, 30) : '',
+    paused:!!d.paused, pausedAt:Number(d.pausedAt) || null, pausedLeft:Number(d.pausedLeft) || null, news:!!d.news, startedAt:Number(d.startedAt) || null};
 }
 function cleanQuiz(q){
   if (!q || typeof q !== 'object' || typeof q.q !== 'string' || !Array.isArray(q.o)) return null;
@@ -122,16 +123,21 @@ function score(nid, r){
     if (B.effect === 'port') dev += B.n * S.trades.filter(t => t.r === r && t.status === 'accepted' && (t.from === nid || t.to === nid) && (t.doneAt || t.at) > x.at).length;
   }
   const quest = questDoneIn(nid, r).length * VILLAGE.questPoint;
-  const fta = S.trades.filter(t => t.r === r && t.status === 'accepted' && (t.from === nid || t.to === nid) && ftaBetween(t.from, t.to, t.doneAt || t.at)).length * FTA.bonus;
-  return {pts, kinds, bonus, dev, quest, fta, total:pts + bonus + dev + quest + fta, count:ms.length};
+  const mine = S.trades.filter(t => t.r === r && t.status === 'accepted' && (t.from === nid || t.to === nid));
+  const fta = mine.filter(t => ftaBetween(t.from, t.to, t.doneAt || t.at)).length * FTA.bonus;
+  const fair = mine.reduce((s, t) => { const f = fairOf(t); return s + (f.kind === 'fair' ? FAIR.point : f.kind === 'unfair' && f.winner === nid ? -FAIR.point : 0); }, 0);
+  return {pts, kinds, bonus, dev, quest, fta, fair, total:pts + bonus + dev + quest + fta + fair, count:ms.length};
 }
 const totalScore = nid => [1,2,3].reduce((s, r) => s + score(nid, r).total, 0) + goalBonus(nid);
 const roundTotal = r => NATIONS.reduce((s, n) => s + score(n.id, r).total, 0);
 const acceptedSorted = () => S.trades.filter(t => t.status === 'accepted').sort((a, b) => a.at - b.at);
 function contractNo(t){ const i = acceptedSorted().findIndex(x => x.id === t.id); return i < 0 ? '' : `무역 계약서 No.${String(i + 1).padStart(3, '0')}`; }
 function evInfo(e){
-  const p = EVENTS.find(x => x.id === e.pid);
+  const p = [...EVENTS, ...GOOD_NEWS].find(x => x.id === e.pid);
   if (p) return {t:p.t, text:p.text};
+  if (e.kind === 'fx') return e.n > 0
+    ? {t:'💪 돈 가치 상승', text:`${NI[e.nation].name}의 돈 가치가 올랐어요(환율 하락). 다른 나라 물건이 싸져서 ${NI[e.nation].name}는 수입하는 거래마다 금을 ${FX.gold}개 더 받고, 수출품은 비싸져서 수출하는 거래마다 금을 ${FX.gold}개 잃어요.`}
+    : {t:'📉 돈 가치 하락', text:`${NI[e.nation].name}의 돈 가치가 내렸어요(환율 상승). ${NI[e.nation].name} 물건이 싸져서 수출하는 거래마다 금을 ${FX.gold}개 더 받고, 수입품은 비싸져서 수입하는 거래마다 금을 ${FX.gold}개 잃어요.`};
   if (e.kind === 'tariff') return {t:'🧾 관세', text:`${NI[e.nation].name}가 자기 나라 산업을 지키려고 수입품에 관세를 매겼어요. ${NI[e.nation].name}로 물건을 수출하면 거래 한 번에 금 ${e.n}개를 내야 해요. (무역 협정을 맺은 나라는 면제)`};
   return {t:'🧱 보호 무역', text:`${NI[e.nation].name}가 자기 나라 산업을 지키려고 이번 라운드 동안 다른 나라와의 거래를 막았어요. ${NI[e.nation].name}로 가는 다리도 닫혔어요.`};
 }

@@ -42,6 +42,7 @@ trade-game-web/
 | 창고 크기와 늘리는 값 | `js/data/game-data.js` | `STORAGE` |
 | 시장 기본 시세, 무역 협정 보너스, 관세 금액 | `js/data/game-data.js` | `BASE_PRICE`, `FTA`, `TARIFF_AMOUNTS` |
 | 비밀 목표, 선생님 문제 보상 | `js/data/game-data.js` | `GOALS`, `QUIZ_REWARD` |
+| 환율 금, 공정 무역 기준, 자동 뉴스 시간과 좋은 소식, 모둠 역할 | `js/data/game-data.js` | `FX`, `FAIR`, `AUTO_NEWS`, `GOOD_NEWS`, `ROLES` |
 | 선생님 문제 모음, 라운드 성찰 질문 | `js/data/lesson-content.js` | `QUIZ_BANK`, `REFLECT_QUESTIONS` |
 | 보너스 점수, 보너스 기준 개수 | `js/data/game-data.js` | `BONUS`, `BONUS_KINDS` |
 | 사건 카드 추가·수정 | `js/data/game-data.js` | `EVENTS` (한 줄 복사 후 `id`만 다르게) |

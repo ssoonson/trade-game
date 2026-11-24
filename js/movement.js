@@ -17,7 +17,7 @@ function canStand(x, y, cur){
   return true;
 }
 function stepPlayer(dt){
-  if (!S.me || S.sheet || S.picker){ P.moving = false; return; }
+  if (!S.me || S.sheet || S.picker || S.game?.paused){ P.moving = false; return; }
   let dx = 0, dy = 0;
   if (keys.has('left')) dx -= 1; if (keys.has('right')) dx += 1; if (keys.has('up')) dy -= 1; if (keys.has('down')) dy += 1;
   if (!dx && !dy && P.target){
@@ -41,7 +41,7 @@ function sendPresence(force){
   if (!store || S.mode !== 'shared' || !S.online) return;
   const now = performance.now();
   if (!force && now - lastSent < 250) return;
-  const pr = S.me ? {x:Math.round(P.x * 10) / 10, y:Math.round(P.y * 10) / 10, n:S.me, nm:S.nick || '', d:P.dir, m:P.moving ? 1 : 0} : null;
+  const pr = S.me ? {x:Math.round(P.x * 10) / 10, y:Math.round(P.y * 10) / 10, n:S.me, nm:S.nick || '', ro:S.role || '', d:P.dir, m:P.moving ? 1 : 0} : null;
   const k = JSON.stringify(pr); if (k === sentKey) return;
   sentKey = k; lastSent = now;
   store.presence(pr);
@@ -49,7 +49,7 @@ function sendPresence(force){
 window.addEventListener('keydown', e => {
   if (mounted !== 'game' || e.target.closest?.('input,select,textarea')) return;
   if (e.key === 'Escape'){ if (S.sheet) ACT.close(); else if (S.picker) ACT.closePicker(); return; }
-  if (S.sheet || S.picker || !S.me) return;
+  if (S.sheet || S.picker || !S.me || S.game?.paused) return;
   const k = KEYMAP[e.key];
   if (k){ keys.add(k); P.target = null; e.preventDefault(); }
   else if ((e.key === ' ' || e.key === 'Enter') && S.near){ e.preventDefault(); S.near.go(); }
@@ -69,7 +69,7 @@ function otherPlayers(dt){
     seen.add(pid);
     let s = smooth.get(pid); if (!s){ s = {x, y}; smooth.set(pid, s); }
     const k = 1 - Math.exp(-dt * 7); s.x += (x - s.x) * k; s.y += (y - s.y) * k;
-    out.push({peer:pid, x:s.x, y:s.y, n:pr.n, nm:cleanNick(pr.nm), d:['up','down','left','right'].includes(pr.d) ? pr.d : 'down', m:!!pr.m || Math.hypot(x - s.x, y - s.y) > .04});
+    out.push({peer:pid, x:s.x, y:s.y, n:pr.n, nm:cleanNick(pr.nm), ro:RO[pr.ro] ? pr.ro : '', d:['up','down','left','right'].includes(pr.d) ? pr.d : 'down', m:!!pr.m || Math.hypot(x - s.x, y - s.y) > .04});
   }
   for (const k of smooth.keys()) if (!seen.has(k)) smooth.delete(k);
   return out;

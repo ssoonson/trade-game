@@ -10,10 +10,10 @@ function roundBars(){
 function scoreTable(){
   const rows = NATIONS.map(n => {
     const tc = S.trades.filter(t => t.status === 'accepted' && (t.from === n.id || t.to === n.id)).length;
-    return {n, s:[1,2,3].map(r => score(n.id, r).total), tot:totalScore(n.id), tc, e:econ(n.id), gb:goalBonus(n.id), bd:badgesOf(n.id).length, bl:BUILDINGS.filter(B => builtOf(n.id, B.id)).map(B => B.i).join(' ')};
+    return {n, s:[1,2,3].map(r => score(n.id, r).total), tot:totalScore(n.id), tc, e:econ(n.id), gb:goalBonus(n.id), bd:badgesOf(n.id).length, tb:tradeBalance(n.id).bal, bl:BUILDINGS.filter(B => builtOf(n.id, B.id)).map(B => B.i).join(' ')};
   }).sort((a, b) => b.tot - a.tot);
-  return `<div class="tablewrap"><table><thead><tr><th>나라</th><th>1라운드</th><th>2라운드</th><th>3라운드</th><th>합계</th><th>거래 수</th><th>주민</th><th>행복도</th><th>금</th><th>건물</th><th>목표</th><th>배지</th></tr></thead><tbody>
-    ${rows.map(x => `<tr><td>${nTag(x.n.id)}</td>${x.s.map(v => `<td>${v}</td>`).join('')}<td class="tot">${x.tot}</td><td>${x.tc}</td><td>${x.e.res}명</td><td>${x.e.rate.face} ${x.e.hap}</td><td>${x.e.gold}</td><td>${x.bl || '-'}</td><td>${x.gb ? '✔' : '-'}</td><td>${x.bd}</td></tr>`).join('')}
+  return `<div class="tablewrap"><table><thead><tr><th>나라</th><th>1라운드</th><th>2라운드</th><th>3라운드</th><th>합계</th><th>거래 수</th><th>주민</th><th>행복도</th><th>금</th><th>건물</th><th>목표</th><th>배지</th><th>무역 수지</th></tr></thead><tbody>
+    ${rows.map(x => `<tr><td>${nTag(x.n.id)}</td>${x.s.map(v => `<td>${v}</td>`).join('')}<td class="tot">${x.tot}</td><td>${x.tc}</td><td>${x.e.res}명</td><td>${x.e.rate.face} ${x.e.hap}</td><td>${x.e.gold}</td><td>${x.bl || '-'}</td><td>${x.gb ? '✔' : '-'}</td><td>${x.bd}</td><td>${x.tb > 0 ? '+' + x.tb : x.tb}</td></tr>`).join('')}
   </tbody></table></div>`;
 }
 /* 계획서와 실제 무역 비교 */
@@ -44,6 +44,7 @@ function myRecord(){
     <b>거래</b><span>${acc.length}번 성공${best ? ` · 가장 많이 거래한 나라: ${NI[best[0]].name} (${best[1]}번)` : ''}</span>
     <b>수출</b><span class="cost">${bagChips(out)}</span>
     <b>수입</b><span class="cost">${bagChips(inn)}</span>
+    <b>공정 무역</b><span>${(() => { const f = acc.map(fairOf); return `공정한 거래 ${f.filter(x => x.kind === 'fair').length}번 · 불공정한 거래 ${f.filter(x => x.kind === 'unfair').length}번`; })()}</span>
     <b>만든 물건</b><span class="cost">${madeHtml}</span>
     <b>지은 건물</b><span class="cost">${BUILDINGS.filter(B => builtOf(me, B.id)).map(B => `<span class="chip">${B.i} ${B.name}</span>`).join('') || '<span class="muted small">없음</span>'}</span>
     <b>계획</b><span>${planCheck(me)}</span>
@@ -59,6 +60,7 @@ function viewWrap(){
     <h2>라운드별 모든 나라 점수 합계</h2>
     ${roundBars()}
     <p>${esc(insight)}</p></section>
+  <section class="card" style="display:grid;gap:12px">${balanceHtml()}</section>
   ${myRecord()}
   <section class="card" style="display:grid;gap:12px"><h3>생각해 볼 질문</h3>
     <ol class="qs">${WRAP_QUESTIONS.map(q => `<li>${esc(q)}</li>`).join('')}

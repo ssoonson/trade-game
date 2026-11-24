@@ -146,3 +146,32 @@ const QUIZ_REWARD = {perAnswer: 1, maxPerNation: 4};
 
 /* 별명 최대 글자 수 */
 const NICK_MAX = 6;
+
+/* 환율 사건: 선생님이 한 나라의 돈 가치를 올리거나(+1) 내려요(-1). 그 라운드에만 적용돼요.
+   돈 가치가 오르면 → 수입이 싸져서 수입 거래 한 번마다 금 +gold, 수출은 비싸져서 수출 거래 한 번마다 금 -gold
+   돈 가치가 내리면 → 반대 (수출 +gold, 수입 -gold) */
+const FX = {gold: 1};
+
+/* 공정 무역: 기본 시세(BASE_PRICE, 금은 1개 = 1)로 주고받는 값을 비교해요.
+   두 값이 fairWithin 배 안이면 '공정' → 두 나라 모두 점수 +point
+   한쪽이 unfairRatio 배 이상, unfairGap 이상 더 받으면 '불공정' → 이득 본 나라 점수 -point, 손해 본 나라 주민 행복도 -hapDown */
+const FAIR = {fairWithin: 1.5, unfairRatio: 2, unfairGap: 3, point: 1, hapDown: 5};
+
+/* 자동 뉴스 속보: 켜 두면 라운드가 시작되고 minSec~maxSec초 뒤에 사건이 하나 저절로 일어나요 (선생님 화면이 켜져 있어야 해요) */
+const AUTO_NEWS = {minSec: 90, maxSec: 180};
+/* 자동 뉴스에만 나오는 좋은 소식 */
+const GOOD_NEWS = [
+  {id:'harvest', t:'🌾 대풍년',        text:'들판나라에 풍년이 들었어요. 곡물이 3개 늘었어요.', kind:'res', nation:'field', res:'grain', n:3},
+  {id:'fishery', t:'🐟 물고기 떼',      text:'파도나라 바다에 물고기 떼가 몰려왔어요. 수산물이 3개 늘었어요.', kind:'res', nation:'wave', res:'fish', n:3},
+  {id:'newmine', t:'💎 새 광산 발견',    text:'바위나라에서 새 광산을 찾았어요. 광물이 3개 늘었어요.', kind:'res', nation:'rock', res:'ore', n:3},
+  {id:'forestgrow', t:'🌳 숲 가꾸기 성공', text:'숲나라가 가꾼 숲이 자라서 목재가 3개 늘었어요.', kind:'res', nation:'forest', res:'wood', n:3},
+];
+
+/* 모둠 역할: 4명이 한 가지씩 맡아요. 역할은 안내일 뿐 누구나 모든 버튼을 쓸 수 있어요 */
+const ROLES = [
+  {id:'maker',    i:'🏭', t:'생산 담당',   text:'공장에서 물건을 만들고 건물을 지어요.'},
+  {id:'diplomat', i:'🤝', t:'외교 담당',   text:'다른 나라 세관에 가서 거래와 무역 협정을 제안해요.'},
+  {id:'research', i:'🔎', t:'시장 조사 담당', text:'시장 가격판과 다른 나라 전시판을 보고 계획서를 써요.'},
+  {id:'mayor',    i:'🏠', t:'마을 담당',   text:'주민 부탁을 확인하고 들어줘서 행복도를 지켜요.'},
+];
+const RO = Object.fromEntries(ROLES.map(x => [x.id, x]));

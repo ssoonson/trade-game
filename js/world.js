@@ -157,7 +157,7 @@ function drawWorld(cv, mode, dt, t){
   drawGates(g, t);
   const others = otherPlayers(dt);
   const chars = others.map(o => ({...o, you:false}));
-  if (S.me) chars.push({x:P.x, y:P.y, n:S.me, nm:S.nick, d:P.dir, m:P.moving, you:true});
+  if (S.me) chars.push({x:P.x, y:P.y, n:S.me, nm:S.nick, ro:S.role, d:P.dir, m:P.moving, you:true});
   if (mode === 'follow' && S.near){
     const c = S.near.id === 'fac' ? NI[S.me].fac : S.near.id === 'own' ? NI[S.me].stall : S.near.id === 'board' ? BOARD : S.near.id.startsWith('stall-') ? NI[S.near.id.slice(6)].stall : null;
     if (c){ g.strokeStyle = 'rgba(255,214,0,.9)'; g.lineWidth = 4; g.beginPath(); g.arc(c.x * T, c.y * T, 26 + Math.sin(t * 5) * 4, 0, Math.PI * 2); g.stroke(); }
@@ -165,7 +165,8 @@ function drawWorld(cv, mode, dt, t){
   if (mode === 'follow' && P.target){ g.strokeStyle = 'rgba(255,255,255,.85)'; g.lineWidth = 3; g.beginPath(); g.ellipse(P.target.x * T, P.target.y * T, 10, 5, 0, 0, Math.PI * 2); g.stroke(); }
   chars.sort((a, b) => a.y - b.y).forEach(c => {
     const n = NI[c.n];
-    const label = c.you ? (c.nm ? `나 · ${c.nm}` : '나') : (mode === 'overview' ? n.name.slice(0, 2) + (c.nm ? '·' + c.nm : '') : (c.nm || n.name));
+    const ri = RO[c.ro] ? RO[c.ro].i : '';
+    const label = ri + (c.you ? (c.nm ? `나 · ${c.nm}` : '나') : (mode === 'overview' ? n.name.slice(0, 2) + (c.nm ? '·' + c.nm : '') : (c.nm || n.name)));
     drawChar(g, c.x, c.y, n, label, c.d, c.m, t, c.you, 1, c.you ? 'me' : c.peer);
   });
   return {z, camX, camY, cw, ch, others};

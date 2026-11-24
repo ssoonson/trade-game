@@ -39,12 +39,15 @@ window.addEventListener('hashchange', () => { readHash(); keys.clear(); render()
 setInterval(() => {
   const t = timerText(); document.querySelectorAll('[data-timer]').forEach(el => { if (el.textContent !== t) el.textContent = t; });
   if (mounted === 'teacher') updateTeacherCounts();
+  autoNewsTick();
+  const nn = document.querySelector('[data-newsin]'); if (nn){ const s = nextNewsIn(); nn.textContent = s === null ? '' : s === 0 ? '이번 라운드 뉴스가 나왔어요' : `다음 뉴스까지 약 ${Math.floor(s / 60)}분 ${s % 60}초`; }
 }, 1000);
 function updateTeacherCounts(){
   const tc = $('#tcounts'); if (!tc) return;
   if (S.mode !== 'shared'){ tc.innerHTML = '<span class="pill">한 기기 연습 모드</span>'; return; }
-  const cnt = {}; for (const pr of Object.values(S.players || {})) if (pr && NI[pr.n]) cnt[pr.n] = (cnt[pr.n] || 0) + 1;
-  tc.innerHTML = NATIONS.map(n => `<span class="pill nc-${n.id}"><span class="nname">${n.flag} ${n.name}</span> ${cnt[n.id] || 0}명</span>`).join('');
+  const cnt = {}, rl = {}; for (const pr of Object.values(S.players || {})) if (pr && NI[pr.n]){ cnt[pr.n] = (cnt[pr.n] || 0) + 1; if (RO[pr.ro]) rl[pr.n] = (rl[pr.n] || '') + RO[pr.ro].i; }
+  const html = NATIONS.map(n => `<span class="pill nc-${n.id}"><span class="nname">${n.flag} ${n.name}</span> ${cnt[n.id] || 0}명 ${rl[n.id] || ''}</span>`).join('');
+  if (tc.innerHTML !== html) tc.innerHTML = html;
 }
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { base = null; });
 readHash();

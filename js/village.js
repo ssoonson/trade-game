@@ -58,7 +58,7 @@ function econ(nid){
   let res = VILLAGE.residentsStart, hap = VILLAGE.happyStart, gold = VILLAGE.goldStart;
   const rounds = {};
   for (let r = 1; r <= cur; r++){
-    const startRes = res, startHap = hap, rate = goldRate(hap);
+    const startRes = res, startHap = hap, rate = goldRate(hap); let unfairHits = 0;
     const income = startRes * rate.gold; gold += income;
     const done = questDoneIn(nid, r);
     hap = Math.min(100, hap + done.length * VILLAGE.questUp); gold += done.length * VILLAGE.questGold;
@@ -67,6 +67,7 @@ function econ(nid){
       if (t.from === nid) gold += (t.get.gold || 0) - (t.give.gold || 0);
       else if (t.to === nid) gold += (t.give.gold || 0) - (t.get.gold || 0);
       for (const x of tariffsOf(t)){ if (x.payer === nid) gold -= x.n; if (x.to === nid) gold += x.n; }
+      if (t.from === nid || t.to === nid){ gold += fxGold(t, nid); const f = fairOf(t); if (f.kind === 'unfair' && f.loser === nid){ hap = Math.max(0, hap - FAIR.hapDown); unfairHits++; } }
     }
     for (const u of S.upgrades) if (u.nation === nid && u.r === r){ const lv = S.upgrades.filter(v => v.nation === nid && v.at < u.at).length; if (lv < STORAGE.maxLevel) gold -= STORAGE.priceBase + STORAGE.priceStep * lv; }
     let unresolved = 0, left = false, drop = 0;
@@ -75,12 +76,13 @@ function econ(nid){
       drop = unresolved * VILLAGE.questDown; hap = Math.max(0, hap - drop);
       if (hap < VILLAGE.leaveBelow && res > 1){ res -= 1; left = true; }
     }
-    rounds[r] = {startRes, startHap, income, rate, done:done.length, unresolved, drop, left, endRes:res, endHap:hap, ended:ended(r)};
+    rounds[r] = {startRes, startHap, income, rate, done:done.length, unfairHits, unresolved, drop, left, endRes:res, endHap:hap, ended:ended(r)};
   }
   return (econMemo.data[nid] = {res, hap, gold:Math.max(0, gold), rounds, rate:goldRate(hap)});
 }
 function residentsAtStart(nid, r){
   // 라운드 r 이 시작될 때 주민 수 (부탁 개수와 같아요)
+  const er = econ(nid).rounds[r]; if (er) return er.startRes;
   let res = VILLAGE.residentsStart, hap = VILLAGE.happyStart;
   for (let k = 1; k < r; k++){
     const done = new Set(S.qdone.filter(q => q.nation === nid && q.r === k).map(q => q.slot)).size;

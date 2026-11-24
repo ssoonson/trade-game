@@ -27,13 +27,14 @@ const ACT = {
   /* 나라 고르기 */
   openPicker: () => { S.picker = true; S.pickSel = S.me; S.sheet = null; render(); },
   closePicker: () => { if (S.me){ S.picker = false; render(); } },
+  pickRole: d => { if (!RO[d.id] && d.id !== '') return; S.role = d.id; document.querySelectorAll('[data-act="pickRole"]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === d.id))); },
   pickSel: d => { if (!NI[d.id]) return; S.pickSel = d.id; document.querySelectorAll('[data-act="pickSel"]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === d.id))); const go = $('#pickGo'); if (go) go.disabled = false; },
   pickGo: () => {
     if (!NI[S.pickSel]) return;
     S.nick = cleanNick($('#nick')?.value);
     const changed = S.me !== S.pickSel;
     S.me = S.pickSel; S.picker = false;
-    try { localStorage.setItem('trade-me', S.me); localStorage.setItem('trade-nick', S.nick); } catch {}
+    try { localStorage.setItem('trade-me', S.me); localStorage.setItem('trade-nick', S.nick); localStorage.setItem('trade-role', S.role || ''); } catch {}
     if (changed){ S.draft = {to:'', give:{}, get:{}}; goHome(); }
     sendPresence(true); render();
     $('#world')?.focus();
@@ -169,8 +170,20 @@ const ACT = {
   quizClose: () => { if (S.game?.quiz) setGame({quiz:{...S.game.quiz, open:false}}).then(ok => ok && toast('문제를 닫았어요.')); },
   cancel: d => { const t = S.trades.find(x => x.id === d.id); if (t && t.status === 'pending') guarded(() => store.updateTrade(t.id, {status:'cancelled'})); },
   /* 선생님 */
-  round: d => { const r = Number(d.r); if (!ROUNDS[r]) return; S.confirmReset = false; setGame({gid:S.game?.gid || newId(), round:r, tradeOpen:r >= 2, phase:'play', endsAt:null}); },
-  endGame: () => setGame({phase:'end', endsAt:null}),
+  round: d => { const r = Number(d.r); if (!ROUNDS[r]) return; S.confirmReset = false; setGame({gid:S.game?.gid || newId(), round:r, tradeOpen:r >= 2, phase:'play', endsAt:null, startedAt:Date.now() + (S.offset || 0), paused:false, pausedLeft:null}); },
+  endGame: () => setGame({phase:'end', endsAt:null, paused:false, pausedLeft:null}),
+  /* 전체 멈춤: 타이머도 같이 멈춰요 */
+  pause: () => {
+    const g = S.game; if (!g) return; const now = Date.now() + (S.offset || 0);
+    if (!g.paused) setGame({paused:true, pausedAt:now, pausedLeft:g.endsAt ? Math.max(1000, g.endsAt - now) : null, endsAt:null}).then(ok => ok && toast('모든 학생 화면을 멈췄어요.'));
+    else setGame({paused:false, endsAt:g.pausedLeft ? now + g.pausedLeft : null, pausedLeft:null, startedAt:g.startedAt ? g.startedAt + Math.max(0, now - (g.pausedAt || now)) : null, pausedAt:null}).then(ok => ok && toast('다시 시작했어요.'));
+  },
+  news: () => setGame({news:!S.game?.news}).then(ok => ok && toast(S.game?.news ? '자동 뉴스 속보를 켰어요.' : '자동 뉴스 속보를 껐어요.')),
+  fx: d => {
+    const r = round(), nid = S.blockPick, n = Number(d.n) > 0 ? 1 : -1; if (r < 1) return toast('라운드를 먼저 시작하세요.'); if (!NI[nid]) return;
+    const rest = S.game.events.filter(e => !(e.r === r && e.kind === 'fx' && e.nation === nid));
+    setGame({events:[...rest, {r, kind:'fx', nation:nid, res:null, n, pid:'', key:newId()}]}).then(ok => ok && toast(`${NI[nid].name}의 돈 가치를 ${n > 0 ? '올렸어요' : '내렸어요'}.`));
+  },
   trade: () => setGame({tradeOpen:!S.game?.tradeOpen}),
   timer: d => setGame({endsAt: Number(d.m) ? Date.now() + (S.offset || 0) + Number(d.m) * 60000 : null}),
   event: d => {
@@ -196,6 +209,7 @@ const ACT = {
 };
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]'); if (!el || el.disabled) return;
+  if (S.game?.paused && el.closest('#game')) return toast('⏸ 선생님 설명 시간이에요. 잠깐 화면을 봐 주세요.');
   const f = ACT[el.dataset.act]; if (f) f(el.dataset);
 });
 document.addEventListener('change', e => { if (e.target.id === 'blockPick') S.blockPick = e.target.value; if (e.target.id === 'tariffAmt') S.tariffAmt = e.target.value; });

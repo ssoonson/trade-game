@@ -3,6 +3,7 @@
 */
 /* ================= 화면: 게임 (RPG) ================= */
 function timerText(){
+  if (S.game?.paused) return S.game.pausedLeft ? `⏸ ${Math.floor(S.game.pausedLeft / 60000)}:${String(Math.round(S.game.pausedLeft / 1000) % 60).padStart(2, '0')} 멈춤` : '⏸ 멈춤';
   if (!S.game?.endsAt) return '';
   const s = Math.max(0, Math.round((S.game.endsAt - Date.now() - (S.offset || 0)) / 1000));
   return s ? `⏱ ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : '⏱ 시간 끝!';
@@ -13,6 +14,7 @@ function statusPills(){
   if (g.phase === 'end') return `<span class="pill">게임 끝</span>`;
   return `<span class="pill acc">${ROUNDS[r].t} · ${ROUNDS[r].s}</span>
     ${g.tradeOpen ? '<span class="pill ok">무역 가능 · 다리 열림</span>' : '<span class="pill bad">무역 금지 · 다리 닫힘</span>'}
+    ${g.paused ? '<span class="pill bad">⏸ 모두 멈춤</span>' : ''}
     <span class="timer" data-timer>${timerText()}</span>`;
 }
 function mountGame(){
@@ -28,6 +30,7 @@ function mountGame(){
     </div>
     <button class="prompt" id="prompt" data-act="interact" hidden></button>
     <div class="layer" id="sheet" hidden></div>
+    <div class="layer pause" id="pause" hidden><div class="panel"><span class="big">⏸</span><h2>선생님 설명 시간이에요</h2><p>손을 내려놓고 선생님을 봐 주세요. 선생님이 다시 시작하면 이어서 해요.</p></div></div>
     <div class="layer" id="picker" hidden></div>
   </div>`;
 }
@@ -54,7 +57,7 @@ function updateGame(){
   if (!S.me){ hud.innerHTML = ''; $('#sheet').hidden = true; return; }
   const me = NI[S.me], r = round(), ic = incomingCount();
   const sc = r ? score(S.me, r).total : 0;
-  hud.innerHTML = `<div class="glass who nc-${me.id}"><span class="fl"><img src="${animalPortrait(me.id)}" alt=""></span><div><b>${me.name}</b>${S.nick ? `<div class="nick">탐험가 ${esc(S.nick)}</div>` : ''}</div></div>
+  hud.innerHTML = `<div class="glass who nc-${me.id}"><span class="fl"><img src="${animalPortrait(me.id)}" alt=""></span><div><b>${me.name}</b>${S.nick || S.role ? `<div class="nick">${RO[S.role] ? RO[S.role].i + ' ' + RO[S.role].t : '탐험가'}${S.nick ? ' ' + esc(S.nick) : ''}</div>` : ''}</div></div>
     <div class="glass status">${statusPills()}</div>
     <div class="right">
       <span class="glass scorebox"><span class="medal">${icon('star')}</span><span class="score">${sc}점</span><span class="small muted long">이번 라운드 · 합계 ${totalScore(S.me)}점</span></span>
@@ -78,11 +81,13 @@ function updateGame(){
     S.summaryShown = sk;
     const lines = [`부탁 ${prev.done}개를 들어줬어요.`];
     if (prev.unresolved) lines.push(`못 들어준 부탁 ${prev.unresolved}개 때문에 행복도가 ${prev.drop} 내려갔어요.`);
+    if (prev.unfairHits) lines.push(`불공정한 거래 ${prev.unfairHits}번 때문에 행복도가 ${prev.unfairHits * FAIR.hapDown} 내려갔어요.`);
     if (prev.left) lines.push('행복도가 너무 낮아 주민 1명이 마을을 떠났어요.');
     lines.push(`이번 라운드에는 주민 ${ev.rounds[r].startRes}명이 금 ${ev.rounds[r].income}개를 냈어요.`);
     showNotice(prev.left ? '😢' : '🏠', `${r - 1}라운드 마을 결과`, lines.join(' '));
     if (!S.notes[S.me + '_' + (r - 1)]) S.sheet = {type:'reflect', r:r - 1};
   }
+  $('#pause').hidden = !S.game?.paused;
   // 사건 알림
   const evs = (S.game?.events || []).filter(e => e.r === r);
   for (const e of evs){ const k = (S.game.gid || '') + e.key; if (!S.seenEvents.has(k)){ S.seenEvents.add(k); showBanner(e); } }
@@ -108,7 +113,7 @@ function updateGame(){
   if (fresh.length && S.game?.gid){ fresh.forEach(b => seen.add(b.id)); try { localStorage.setItem(gk, JSON.stringify([...seen])); } catch {} if (S.loaded) toast(`배지 획득! ${fresh.map(b => b.i + ' ' + b.t).join(', ')}`); }
 }
 let bannerT;
-function showBanner(e){ const x = evInfo(e); showNotice('📰', `사건 발생! ${x.t}`, x.text); }
+function showBanner(e){ const x = evInfo(e); showNotice('📰', `${e.auto ? '뉴스 속보!' : '사건 발생!'} ${x.t}`, x.text); }
 function showNotice(ico, title, text){
   const el = $('#banner'); if (!el) return;
   el.innerHTML = `<span class="ico" aria-hidden="true">${ico}</span><div><h3>${esc(title)}</h3><p>${esc(text)}</p></div>`;
@@ -122,6 +127,7 @@ function pickerHtml(){
       const inc = Object.entries(n.income).map(([k, v]) => `${RES[k][1]}×${v}`).join(' ');
       return `<button class="nation nc-${n.id}" data-act="pickSel" data-id="${n.id}" aria-pressed="${S.pickSel === n.id}"><span class="flag"><img src="${animalPortrait(n.id)}" alt=""></span><span class="nm">${n.name}</span><span class="small" style="font-weight:700">${n.flag} ${ANIMALS[animalOf(n)].name} 탐험가</span><span class="small">${esc(n.desc)}</span><span class="small muted">매 라운드 자원 ${inc}</span></button>`;
     }).join('')}</div>
+    <div class="sect"><span class="label">내 역할 (모둠 친구들과 겹치지 않게 골라요)</span><div class="row" style="gap:8px">${ROLES.map(x => `<button class="opt" data-act="pickRole" data-id="${x.id}" aria-pressed="${S.role === x.id}" title="${esc(x.text)}">${x.i} ${x.t}<span class="small" style="display:block;font-family:var(--body)">${esc(x.text)}</span></button>`).join('')}</div></div>
     <div class="row"><label for="nick" class="small" style="font-weight:700">내 별명 (${NICK_MAX}글자까지)</label><input type="text" id="nick" maxlength="${NICK_MAX}" placeholder="예: 민준" value="${esc(S.nick)}" autocomplete="off"></div>
     <div class="row"><button class="btn" id="pickGo" data-act="pickGo" ${S.pickSel ? '' : 'disabled'}>이 나라로 출발!</button></div>
   </div>`;
@@ -259,11 +265,12 @@ function tradeHtml(r, to){
   const theirs = S.trades.filter(t => t.r === r && t.from === to && t.to === S.me && t.status === 'pending').length;
   return `${exhibitHtml(r, to)}<div class="sect"><span class="label">우리 창고</span>${stockHtml(r)}</div>
     ${theirs ? `<p class="lockbox">${NI[to].name}가 보낸 제안이 ${theirs}건 있어요. <button class="btn sm" data-act="sheet" data-t="offers">제안 보기</button></p>` : ''}
-    ${tariffNote(to)}
+    ${tariffNote(to)}${fxNote(to)}
     ${ftaBox(to, ok)}
     <p class="small muted">자원끼리 바꾸는 물물교환도, 🪙 금을 주고 사거나 금을 받고 파는 것도 돼요. 게시판의 <b>시장 가격판</b>에서 요즘 값을 확인해 보세요.</p>
     <div class="sect"><span class="label">우리가 줄 것 (수출)</span>${steps('give')}</div>
     <div class="sect"><span class="label">우리가 받고 싶은 것 (수입)</span>${steps('get')}</div>
+    ${fairMeter(dr.give, dr.get)}
     <div class="row"><button class="btn" data-act="send" ${total(dr.give) && total(dr.get) && ok ? '' : 'disabled'}>제안 보내기</button>
       <button class="btn ghost" data-act="clearDraft">다시 정하기</button></div>
     ${mine.length ? `<div class="sect"><span class="label">보낸 제안 · 답을 기다리는 중</span><div class="list">${mine.map(t => `<div class="offer">${offerSides(t, true)}<div class="row"><button class="btn ghost sm" data-act="cancel" data-id="${esc(t.id)}" ${ok ? '' : 'disabled'}>제안 취소</button></div></div>`).join('')}</div></div>` : ''}
@@ -280,6 +287,7 @@ function offersHtml(r){
     const canAccept = !blockedPair && has(inv(t.from, r), t.give) && has(avail(S.me, r), t.get) && (t.give.gold || 0) <= econ(t.from).gold && (t.get.gold || 0) <= goldAvail(S.me);
     return `<div class="offer incoming"><div>${nTag(t.from)} <span class="small muted">의 제안</span></div>
       ${offerSides(t, false)}
+      ${fairMeter(t.get, t.give)}
       ${canAccept ? '' : `<p class="small" style="color:var(--bad)">${blockedPair ? '지금은 이 나라와 거래할 수 없어요.' : '자원이 부족해서 지금은 받을 수 없어요.'}</p>`}
       <div class="row"><button class="btn ok sm" data-act="answer" data-ok="1" data-id="${esc(t.id)}" ${canAccept && ok ? '' : 'disabled'}>수락</button>
       <button class="btn ghost sm" data-act="answer" data-ok="0" data-id="${esc(t.id)}" ${ok ? '' : 'disabled'}>거절</button></div></div>`;
@@ -305,6 +313,7 @@ function boardHtml(r){
   const evs = (S.game?.events || []).filter(e => e.r === r && S.game.phase === 'play');
   return `${evs.length ? `<div class="sect"><span class="label">이번 라운드 소식</span>${evs.map(e => { const x = evInfo(e); return `<div class="event"><div><h3>${esc(x.t)}</h3><p>${esc(x.text)}</p></div></div>`; }).join('')}</div>` : ''}
     ${marketHtml()}
+    ${round() >= 1 ? balanceHtml() : ''}
     <div class="sect"><span class="label">이렇게 움직여요</span>
     <ul class="qs"><li>방향키나 W·A·S·D로 걸어요. 태블릿에서는 왼쪽 아래 화살표를 누르거나 가고 싶은 곳을 톡 눌러요.</li>
     <li>건물이나 친구 가까이 가면 아래에 버튼이 생겨요. 버튼을 누르거나 Space를 눌러요.</li></ul></div>
@@ -320,6 +329,8 @@ function boardHtml(r){
       <li>창고에는 자원마다 정해진 만큼만 보관할 수 있어요. 금으로 <b>창고를 늘릴</b> 수 있어요.</li>
       <li>두 나라가 <b>무역 협정(FTA)</b>을 맺으면 서로 거래할 때마다 점수 +${FTA.bonus}, 관세가 없어요.</li>
       <li><b>관세</b>가 붙은 나라에 물건을 수출하려면 거래 한 번에 금을 내야 해요.</li>
+      <li><b>환율</b>: 돈 가치가 오른 나라는 수입할 때, 돈 가치가 내린 나라는 수출할 때 금을 더 받아요.</li>
+      <li><b>공정 무역</b>: 기본 시세로 비슷한 값을 주고받으면 두 나라 모두 +${FAIR.point}점! 한쪽에 너무 불리하면 이득 본 나라는 -${FAIR.point}점, 손해 본 나라 주민 행복도는 -${FAIR.hapDown}이에요.</li>
       <li>우리 나라만 아는 <b>비밀 목표</b>를 이루면 점수를 더 받아요. 화면 위 <b>우리 나라</b> 버튼에서 확인해요.</li>
       <li>선생님이 낸 <b>문제</b>를 맞히면 우리 나라 특산 자원을 더 받아요.</li>
       <li>화면 위 <b>계획서</b> 버튼으로 무역 계획을 세워요. 1라운드에 써 두면 2라운드에 바로 거래하러 갈 수 있어요.</li>
@@ -369,6 +380,8 @@ function nationHtml(){
     <div class="sect"><span class="label">🏅 우리 나라 배지</span><div class="cost">${badgeChips(S.me)}</div>
     <p class="small muted">아직 받을 수 있는 배지: ${BADGES.filter(b => !badgesOf(S.me).includes(b)).map(b => `${b.i} ${esc(b.t)}`).join(' · ') || '모두 받았어요!'}</p></div>
     <div class="sect"><span class="label">📜 무역 협정을 맺은 나라</span><p>${ftaPartners(S.me).map(n => nTag(n)).join(', ') || '<span class="muted small">아직 없어요. 다른 나라 세관에서 제안할 수 있어요.</span>'}</p></div>
+    ${roleHtml()}
+    <div class="sect"><span class="label">⚖️ 우리 무역 수지</span>${(() => { const b = tradeBalance(S.me); return `<p class="small">수출 ${b.expU}개(🪙${b.expV}) · 수입 ${b.impU}개(🪙${b.impV}) → <b>${b.bal > 0 ? '흑자 +' + b.bal : b.bal < 0 ? '적자 ' + b.bal : '균형'}</b></p>`; })()}</div>
     <div class="sect"><span class="label">🏠 마을</span><p class="small">주민 ${e.res}명 · 행복도 ${e.hap} ${e.rate.face} · 금 ${goldAvail(S.me)}개 · 창고 자원마다 ${storageCap(S.me)}개</p></div>`;
 }
 function reflectHtml(r){
@@ -377,4 +390,17 @@ function reflectHtml(r){
     <div class="row"><input type="text" id="noteText" maxlength="120" placeholder="한 줄로 적어요" value="${esc(old ? old.text : '')}" style="flex:1 1 260px;width:auto"></div>
     <div class="row"><button class="btn" data-act="saveNote">저장하기</button><button class="btn ghost" data-act="close">나중에 쓰기</button></div>
     <p class="small muted">우리 나라 친구 중 한 명이 쓰면 돼요. 정리하기와 선생님 화면에 모여요.</p>`;
+}
+
+function fxNote(to){
+  const r = round(), a = fxOf(S.me, r), b = fxOf(to, r), lines = [];
+  if (a > 0) lines.push(`우리 돈 가치가 올랐어요. 수입하면 금 +${FX.gold}, 수출하면 금 -${FX.gold}.`);
+  if (a < 0) lines.push(`우리 돈 가치가 내렸어요. 수출하면 금 +${FX.gold}, 수입하면 금 -${FX.gold}.`);
+  if (b) lines.push(`${NI[to].name}의 돈 가치가 ${b > 0 ? '올랐어요' : '내렸어요'}.`);
+  return lines.length ? `<p class="lockbox">💱 ${lines.join(' ')}</p>` : '';
+}
+function roleHtml(){
+  const tr = teamRoles(S.me);
+  return `<div class="sect"><span class="label">👥 우리 모둠 역할</span><div class="list">${ROLES.map(x => `<div class="offer ${tr[x.id] ? '' : 'incoming'}"><b>${x.i} ${x.t}${S.role === x.id ? ' (나)' : ''}</b><span class="small">${esc(x.text)}</span><span class="small ${tr[x.id] ? '' : 'muted'}">${tr[x.id] ? '맡은 친구: ' + tr[x.id].map(esc).join(', ') : '아직 아무도 안 맡았어요'}</span></div>`).join('')}</div>
+    <p class="small muted">역할은 화면 위 <b>나라 바꾸기</b>에서 바꿀 수 있어요. 역할이 달라도 모든 버튼을 쓸 수 있어요.</p></div>`;
 }
