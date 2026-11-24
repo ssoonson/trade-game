@@ -10,6 +10,7 @@ const VIEWS = {
 let mounted = null, mountedTeach = null, lastRoundKey = null;
 function readHash(){ const h = location.hash.slice(1); S.view = VIEWS[h] ? h : 'game'; }
 function render(){
+  S.rev++;
   // 라운드가 바뀌면 집으로
   const rk = (S.game?.gid || '') + ':' + round() + ':' + (S.game?.phase || '');
   if (rk !== lastRoundKey){

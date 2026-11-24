@@ -85,5 +85,32 @@ const BUILDINGS = [
 /* 건물을 지으면 바로 받는 점수 */
 const BUILD_PT = 2;
 
+/* 주민 · 행복도 · 금
+   주민은 라운드가 시작될 때마다 행복도에 따라 금을 내요. 금으로 주민을 더 데려오거나 다른 나라와 거래해요.
+   주민마다 한 라운드에 부탁(퀘스트)을 하나씩 해요. 들어주면 행복도가 오르고,
+   못 들어준 채 라운드가 끝나면 행복도가 내려가요. 행복도가 leaveBelow 아래면 주민 1명이 떠나요. */
+const VILLAGE = {
+  residentsStart: 3,   // 처음 주민 수
+  residentsMax: 8,     // 최대 주민 수
+  happyStart: 70,      // 처음 행복도 (0~100)
+  leaveBelow: 30,      // 라운드가 끝날 때 행복도가 이보다 낮으면 주민 1명이 떠나요
+  questUp: 10,         // 부탁을 들어주면 행복도 +
+  questDown: 8,        // 못 들어준 부탁 1개마다 라운드가 끝날 때 행복도 -
+  questPoint: 2,       // 부탁을 들어주면 받는 점수
+  questGold: 1,        // 부탁을 들어주면 받는 금
+  goldStart: 5,        // 처음 가진 금
+  hireBase: 6,         // 주민을 더 데려오는 값: 6, 8, 10 … 처럼 올라가요
+  hireStep: 2,
+};
+/* 행복도에 따라 주민 1명이 라운드마다 내는 금 (위에서부터 확인해요) */
+const GOLD_RATE = [
+  {min:80, gold:3, face:'😄', label:'아주 행복해요'},
+  {min:50, gold:2, face:'🙂', label:'행복해요'},
+  {min:30, gold:1, face:'😐', label:'그저 그래요'},
+  {min:0,  gold:0, face:'😢', label:'불행해요'},
+];
+/* 주민 이름 (순서대로 붙어요) */
+const RESIDENT_NAMES = ['보리', '콩이', '달이', '솔이', '하늘', '누리', '도담', '라온'];
+
 /* 별명 최대 글자 수 */
 const NICK_MAX = 6;

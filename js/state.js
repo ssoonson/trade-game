@@ -10,7 +10,7 @@ const BI = Object.fromEntries(BUILDINGS.map(x => [x.id, x]));
 /* ================= 상태 ================= */
 const S = {
   mode:'connecting', loaded:false, slow:false, dbError:false,
-  game:null, trades:[], makes:[], builds:[], plans:{}, planDraft:null,
+  game:null, trades:[], makes:[], builds:[], plans:{}, planDraft:null, qdone:[], hires:[], rev:0, summaryShown:'',
   me:null, nick:'', view:'game', canTeach:false, canWrite:null, busy:false,
   draft:{to:'', give:{}, get:{}}, blockPick:'field', confirmReset:false,
   sheet:null, picker:false, players:{}, online:null, offset:0, join:null, fbError:false, setupMsg:'', setupBusy:false, pickSel:null, near:null, seenEvents:new Set(), banner:null,
@@ -27,12 +27,14 @@ const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2
 const zero = () => Object.fromEntries(RK.map(k => [k, 0]));
 const add = (b, x) => { for (const k in x) b[k] = (b[k] || 0) + x[k]; };
 const sub = (b, x) => { for (const k in x) b[k] = (b[k] || 0) - x[k]; };
+const BAGK = [...RK, 'gold'];   // 거래에 쓸 수 있는 것: 자원 + 금
 const has = (bag, need) => RK.every(k => (bag[k] || 0) >= (need[k] || 0));
-const total = b => RK.reduce((s, k) => s + (b[k] || 0), 0);
+const total = b => BAGK.reduce((s, k) => s + (b[k] || 0), 0);
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const cleanNick = s => String(s || '').replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f]/g, '').trim().slice(0, NICK_MAX);
-function cleanBag(o){ const b = {}; if (o && typeof o === 'object') for (const k of RK){ const v = Math.floor(Number(o[k])); if (v > 0 && v <= 50) b[k] = v; } return b; }
-const bagChips = (b, cls='') => RK.filter(k => b[k]).map(k => `<span class="chip ${cls}">${RES[k][1]} ${RES[k][0]} ×${b[k]}</span>`).join('') || '<span class="muted small">없음</span>';
+function cleanBag(o){ const b = {}; if (o && typeof o === 'object') for (const k of BAGK){ const v = Math.floor(Number(o[k])); if (v > 0 && v <= (k === 'gold' ? 200 : 50)) b[k] = v; } return b; }
+const bagChips = (b, cls='') => BAGK.filter(k => b[k]).map(k => k === 'gold' ? `<span class="chip gold ${cls}">🪙 금 ×${b[k]}</span>` : `<span class="chip ${cls}">${RES[k][1]} ${RES[k][0]} ×${b[k]}</span>`).join('') || '<span class="muted small">없음</span>';
+const noGold = b => { const c = {...b}; delete c.gold; return c; };
 const nTag = id => `<span class="nname nc-${id}">${NI[id].flag} ${NI[id].name}</span>`;
 
 function cleanGame(d){
@@ -58,6 +60,12 @@ function cleanPlan(nid, d){
   const from = {}; if (d.from && typeof d.from === 'object') for (const k of RK) if (NI[d.from[k]] && d.from[k] !== nid) from[k] = d.from[k];
   return {nation:nid, target:d.target, from, note:typeof d.note === 'string' ? d.note.slice(0, 80) : '', r:Number(d.r)||0, at:Number(d.at)||0};
 }
+function cleanQuestDone(id, d){
+  if (!d || !NI[d.nation]) return null; const slot = Math.floor(Number(d.slot));
+  if (!(slot >= 0 && slot < 20)) return null;
+  return {id, r:Number(d.r)||0, nation:d.nation, slot, at:Number(d.at)||0};
+}
+function cleanHire(id, d){ if (!d || !NI[d.nation]) return null; return {id, r:Number(d.r)||0, nation:d.nation, at:Number(d.at)||0}; }
 function cleanMake(id, d){
   if (!d || !NI[d.nation] || !II[d.item]) return null;
   return {id, r:Number(d.r)||0, nation:d.nation, item:d.item, at:Number(d.at)||0};
@@ -70,17 +78,18 @@ function inv(nid, r){
   const b = {...zero(), ...NI[nid].income};
   for (const e of S.game?.events || []) if (e.r === r && e.kind === 'res' && e.nation === nid) b[e.res] = Math.max(0, b[e.res] + e.n);
   for (const t of S.trades) if (t.r === r && t.status === 'accepted'){
-    if (t.from === nid){ sub(b, t.give); add(b, t.get); }
-    else if (t.to === nid){ add(b, t.give); sub(b, t.get); }
+    if (t.from === nid){ sub(b, noGold(t.give)); add(b, noGold(t.get)); }
+    else if (t.to === nid){ add(b, noGold(t.give)); sub(b, noGold(t.get)); }
   }
   for (const m of S.makes) if (m.r === r && m.nation === nid) sub(b, II[m.item].cost);
+  for (const q of questDoneIn(nid, r)){ const def = questsOf(nid, r)[q.slot]; if (def) sub(b, def.cost); }
   for (const x of S.builds) if (x.nation === nid){
     if (x.r === r) sub(b, BI[x.b].cost);
     else if (x.r < r && BI[x.b].effect === 'income') b[NI[nid].spec] += BI[x.b].n;
   }
   return b;
 }
-function locked(nid, r){ const b = zero(); for (const t of S.trades) if (t.r === r && t.status === 'pending' && t.from === nid) add(b, t.give); return b; }
+function locked(nid, r){ const b = zero(); for (const t of S.trades) if (t.r === r && t.status === 'pending' && t.from === nid) add(b, noGold(t.give)); return b; }
 function avail(nid, r){ const a = inv(nid, r), l = locked(nid, r); for (const k of RK) a[k] = Math.max(0, a[k] - l[k]); return a; }
 function score(nid, r){
   const ms = S.makes.filter(m => m.r === r && m.nation === nid);
@@ -95,7 +104,8 @@ function score(nid, r){
     if (B.effect === 'tech') dev += B.n * ms.filter(m => m.at > x.at).length;
     if (B.effect === 'port') dev += B.n * S.trades.filter(t => t.r === r && t.status === 'accepted' && (t.from === nid || t.to === nid) && (t.doneAt || t.at) > x.at).length;
   }
-  return {pts, kinds, bonus, dev, total:pts + bonus + dev, count:ms.length};
+  const quest = questDoneIn(nid, r).length * VILLAGE.questPoint;
+  return {pts, kinds, bonus, dev, quest, total:pts + bonus + dev + quest, count:ms.length};
 }
 const totalScore = nid => [1,2,3].reduce((s, r) => s + score(nid, r).total, 0);
 const roundTotal = r => NATIONS.reduce((s, n) => s + score(n.id, r).total, 0);

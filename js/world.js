@@ -153,6 +153,7 @@ function drawWorld(cv, mode, dt, t){
   g.translate(cw / 2 - camX * z, ch / 2 - camY * z); g.scale(z, z);
   g.imageSmoothingEnabled = true; g.drawImage(base, 0, 0);
   drawBuildings(g, t);
+  drawResidents(g, t);
   drawGates(g, t);
   const others = otherPlayers(dt);
   const chars = others.map(o => ({...o, you:false}));

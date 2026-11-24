@@ -50,31 +50,35 @@ const fbApp = j => {
   return ex || firebase.initializeApp({databaseURL:j.u, apiKey:j.a, projectId:j.p}, name);
 };
 function localStore(){
-  const mem = {game:null, trades:new Map(), makes:new Map(), builds:new Map(), plans:{}};
+  const mem = {game:null, trades:new Map(), makes:new Map(), builds:new Map(), plans:{}, qdone:new Map(), hires:new Map()};
   const emit = () => {
     S.game = cleanGame(mem.game);
     const gid = mem.game?.gid;
     S.trades = [...mem.trades].filter(([, d]) => d.gid === gid).map(([id, d]) => cleanTrade(id, d)).filter(Boolean);
     S.makes = [...mem.makes].filter(([, d]) => d.gid === gid).map(([id, d]) => cleanMake(id, d)).filter(Boolean);
     S.builds = [...mem.builds].filter(([, d]) => d.gid === gid).map(([id, d]) => cleanBuild(id, d)).filter(Boolean);
+    S.qdone = [...mem.qdone].filter(([, d]) => d.gid === gid).map(([id, d]) => cleanQuestDone(id, d)).filter(Boolean);
+    S.hires = [...mem.hires].filter(([, d]) => d.gid === gid).map(([id, d]) => cleanHire(id, d)).filter(Boolean);
     S.plans = Object.fromEntries(Object.entries(mem.plans[gid] || {}).map(([k, d]) => [k, cleanPlan(k, d)]).filter(([, v]) => v));
     render();
   };
   return {
     setGame: async g => { mem.game = JSON.parse(JSON.stringify(g)); emit(); },
-    resetAll: async g => { mem.trades.clear(); mem.makes.clear(); mem.builds.clear(); mem.plans = {}; mem.game = JSON.parse(JSON.stringify(g)); emit(); },
+    resetAll: async g => { mem.trades.clear(); mem.makes.clear(); mem.builds.clear(); mem.plans = {}; mem.qdone.clear(); mem.hires.clear(); mem.game = JSON.parse(JSON.stringify(g)); emit(); },
     addTrade: async d => { mem.trades.set(newId(), {...d}); emit(); },
     updateTrade: async (id, p) => { const d = mem.trades.get(id); if (d) Object.assign(d, p); emit(); },
     acceptTrade: async id => { const d = mem.trades.get(id); if (!d || d.status !== 'pending') return false; d.status = 'accepted'; d.doneAt = Date.now(); emit(); return true; },
     addMake: async d => { mem.makes.set(newId(), {...d}); emit(); },
     addBuild: async d => { mem.builds.set(newId(), {...d}); emit(); },
+    addQuest: async d => { mem.qdone.set(newId(), {...d}); emit(); },
+    addHire: async d => { mem.hires.set(newId(), {...d}); emit(); },
     setPlan: async (nid, d) => { const g = mem.game?.gid; (mem.plans[g] = mem.plans[g] || {})[nid] = {...d}; emit(); },
     presence: () => {},
   };
 }
 function firebaseStore(j){
   const db = fbApp(j).database(), root = db.ref('classes/' + j.k);
-  let curGid, tRef = null, mRef = null, bRef = null, pRef = null;
+  let curGid, tRef = null, mRef = null, bRef = null, pRef = null, qRef = null, hRef = null;
   const timer = setTimeout(() => { if (!S.loaded){ S.slow = true; render(); } }, 10000);
   db.ref('.info/serverTimeOffset').on('value', s => { S.offset = Number(s.val()) || 0; });
   const meRef = root.child('players/' + myPid);
@@ -89,13 +93,16 @@ function firebaseStore(j){
     S.game = cleanGame(snap.val());
     const gid = (S.game?.gid && /^[a-z0-9]{4,20}$/.test(S.game.gid)) ? S.game.gid : null;
     if (gid !== curGid){
-      curGid = gid; [tRef, mRef, bRef, pRef].forEach(x => x && x.off()); tRef = mRef = bRef = pRef = null; S.trades = []; S.makes = []; S.builds = []; S.plans = {};
+      curGid = gid; [tRef, mRef, bRef, pRef, qRef, hRef].forEach(x => x && x.off()); tRef = mRef = bRef = pRef = qRef = hRef = null; S.trades = []; S.makes = []; S.builds = []; S.plans = {}; S.qdone = []; S.hires = [];
       if (gid){
         tRef = root.child('trades/' + gid); mRef = root.child('makes/' + gid);
         tRef.on('value', s => { const v = s.val() || {}; S.trades = Object.entries(v).map(([id, d]) => cleanTrade(id, d)).filter(Boolean); render(); });
         mRef.on('value', s => { const v = s.val() || {}; S.makes = Object.entries(v).map(([id, d]) => cleanMake(id, d)).filter(Boolean); render(); });
         bRef = root.child('builds/' + gid); pRef = root.child('plans/' + gid);
         bRef.on('value', s => { const v = s.val() || {}; S.builds = Object.entries(v).map(([id, d]) => cleanBuild(id, d)).filter(Boolean); render(); });
+        qRef = root.child('quests/' + gid); hRef = root.child('hires/' + gid);
+        qRef.on('value', s => { const v = s.val() || {}; S.qdone = Object.entries(v).map(([id, d]) => cleanQuestDone(id, d)).filter(Boolean); render(); });
+        hRef.on('value', s => { const v = s.val() || {}; S.hires = Object.entries(v).map(([id, d]) => cleanHire(id, d)).filter(Boolean); render(); });
         pRef.on('value', s => { const v = s.val() || {}; S.plans = Object.fromEntries(Object.entries(v).map(([k, d]) => [k, cleanPlan(k, d)]).filter(([, x]) => x)); render(); });
       }
     }
@@ -104,7 +111,7 @@ function firebaseStore(j){
   const tradeRef = id => root.child('trades/' + S.game.gid + '/' + id);
   return {
     setGame: g => root.child('game').set(g),
-    resetAll: g => root.update({game:g, trades:null, makes:null, builds:null, plans:null}),
+    resetAll: g => root.update({game:g, trades:null, makes:null, builds:null, plans:null, quests:null, hires:null}),
     addTrade: d => root.child('trades/' + S.game.gid).push(d),
     updateTrade: (id, p) => tradeRef(id).transaction(cur => (cur && cur.status === 'pending') ? {...cur, ...p} : undefined),
     acceptTrade: id => new Promise((res, rej) => tradeRef(id).transaction(
@@ -112,6 +119,8 @@ function firebaseStore(j){
       (err, committed) => err ? rej(err) : res(committed))),
     addMake: d => root.child('makes/' + S.game.gid).push(d),
     addBuild: d => root.child('builds/' + S.game.gid).push(d),
+    addQuest: d => root.child('quests/' + S.game.gid).push(d),
+    addHire: d => root.child('hires/' + S.game.gid).push(d),
     setPlan: (nid, d) => root.child('plans/' + S.game.gid + '/' + nid).set(d),
     presence: pr => (pr ? meRef.set(pr) : meRef.remove()).catch(() => {}),
   };

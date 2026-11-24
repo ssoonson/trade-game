@@ -46,6 +46,20 @@ const ACT = {
     if (!has(avail(S.me, r), B.cost)) return toast('자원이 부족해요.');
     guarded(async () => { await store.addBuild({gid:S.game.gid, r, nation:S.me, b:B.id, at:Date.now()}); toast(`${B.i} ${B.name}을(를) 지었어요! +${BUILD_PT}점`); });
   },
+  quest: d => {
+    const r = round(), slot = Number(d.slot); if (!playing() || !S.me) return;
+    const q = questsOf(S.me, r)[slot]; if (!q) return;
+    if (questDone(S.me, r, slot)) return toast('이미 들어준 부탁이에요.');
+    if (!has(avail(S.me, r), q.cost)) return toast('필요한 자원이 부족해요.');
+    guarded(async () => { await store.addQuest({gid:S.game.gid, r, nation:S.me, slot, at:Date.now()}); toast(`${RESIDENT_NAMES[slot % RESIDENT_NAMES.length]}: 고마워요! 행복도 +${VILLAGE.questUp}`); });
+  },
+  hire: () => {
+    if (!playing() || !S.me) return;
+    const e = econ(S.me), price = hirePrice(e.res);
+    if (e.res >= VILLAGE.residentsMax) return toast('마을이 가득 찼어요.');
+    if (goldAvail(S.me) < price) return toast(`금이 ${price}개 필요해요.`);
+    guarded(async () => { await store.addHire({gid:S.game.gid, r:round(), nation:S.me, at:Date.now()}); toast(`새 주민이 이사 왔어요! (금 -${price})`); });
+  },
   planTarget: d => {
     const t = d.v; if (!targetName(t)) return;
     const from = {};
@@ -60,10 +74,10 @@ const ACT = {
     guarded(async () => { await store.setPlan(S.me, {target:p.target, from, r:round(), at:Date.now()}); toast('무역 계획서를 저장했어요. 선생님 화면에도 보여요.'); });
   },
   step: d => {
-    const side = d.side === 'give' ? 'give' : 'get', k = d.res; if (!RES[k]) return;
+    const side = d.side === 'give' ? 'give' : 'get', k = d.res; if (!RES[k] && k !== 'gold') return;
     const cur = S.draft[side][k] || 0;
     let v = cur + (d.dir === '+' ? 1 : -1);
-    const max = side === 'give' ? avail(S.me, round())[k] : 9;
+    const max = k === 'gold' ? (side === 'give' ? goldAvail(S.me) : 30) : (side === 'give' ? avail(S.me, round())[k] : 9);
     v = Math.max(0, Math.min(max, v));
     if (v) S.draft[side][k] = v; else delete S.draft[side][k];
     render();
@@ -77,6 +91,7 @@ const ACT = {
     const give = cleanBag(dr.give), get = cleanBag(dr.get);
     if (!total(give) || !total(get)) return toast('주는 것과 받는 것을 하나 이상씩 정하세요.');
     if (!has(avail(S.me, r), give)) return toast('줄 자원이 부족해요.');
+    if ((give.gold || 0) > goldAvail(S.me)) return toast('줄 금이 부족해요.');
     guarded(async () => {
       await store.addTrade({gid:S.game.gid, r, from:S.me, to:dr.to, give, get, status:'pending', at:Date.now()});
       S.draft = {to:dr.to, give:{}, get:{}};
@@ -89,8 +104,8 @@ const ACT = {
     const bl = blockedIn(r);
     if (t.r !== r || !S.game.tradeOpen) return toast('지난 라운드의 제안이라 받을 수 없어요.');
     if (bl.has(t.from) || bl.has(t.to)) return toast('이번 라운드에는 이 나라와 거래할 수 없어요.');
-    if (!has(inv(t.from, r), t.give)) return toast(`${NI[t.from].name}의 자원이 부족해서 거래할 수 없어요.`);
-    if (!has(avail(t.to, r), t.get)) return toast('우리 나라 자원이 부족해서 거래할 수 없어요.');
+    if (!has(inv(t.from, r), t.give) || (t.give.gold || 0) > econ(t.from).gold) return toast(`${NI[t.from].name}의 자원이나 금이 부족해서 거래할 수 없어요.`);
+    if (!has(avail(t.to, r), t.get) || (t.get.gold || 0) > goldAvail(t.to)) return toast('우리 나라 자원이나 금이 부족해서 거래할 수 없어요.');
     guarded(async () => { const ok = await store.acceptTrade(t.id); toast(ok ? '거래 성공! 자원이 바뀌었어요.' : '이미 처리된 제안이에요.'); });
   },
   cancel: d => { const t = S.trades.find(x => x.id === d.id); if (t && t.status === 'pending') guarded(() => store.updateTrade(t.id, {status:'cancelled'})); },

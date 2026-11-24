@@ -64,10 +64,22 @@ function updateGame(){
       <button class="hbtn" data-act="openPicker" aria-label="나라 바꾸기">${icon('swap')}<span class="long">나라 바꾸기</span></button>
     </div><div class="resbar" id="resbar"></div>`;
   const rb = $('#resbar');
+  const ev = econ(S.me);
+  const vill = `<span class="res vil" title="금"><span class="ri">🪙</span>${goldAvail(S.me)}</span><span class="res vil" title="주민 수"><span class="ri">🏠</span>${ev.res}명</span><span class="res vil hap" title="주민 행복도" style="--hp:${ev.hap}%"><span class="ri">${ev.rate.face}</span>${ev.hap}</span>`;
   if (r && S.game?.phase === 'play'){
     const a = avail(S.me, r), l = locked(S.me, r);
-    rb.innerHTML = RK.map(k => `<span class="res ${a[k] ? '' : 'zero'}" title="${RES[k][0]}"><span class="ri">${RES[k][1]}</span>${a[k]}${l[k] ? `<span class="lk">(+${l[k]} 묶임)</span>` : ''}</span>`).join('');
-  } else rb.innerHTML = '';
+    rb.innerHTML = vill + RK.map(k => `<span class="res ${a[k] ? '' : 'zero'}" title="${RES[k][0]}"><span class="ri">${RES[k][1]}</span>${a[k]}${l[k] ? `<span class="lk">(+${l[k]} 묶임)</span>` : ''}</span>`).join('');
+  } else rb.innerHTML = vill;
+  // 지난 라운드 마을 결과 알림
+  const prev = ev.rounds[r - 1], sk = (S.game?.gid || '') + ':' + r + ':' + S.me;
+  if (prev && prev.ended && S.summaryShown !== sk && S.game?.phase === 'play'){
+    S.summaryShown = sk;
+    const lines = [`부탁 ${prev.done}개를 들어줬어요.`];
+    if (prev.unresolved) lines.push(`못 들어준 부탁 ${prev.unresolved}개 때문에 행복도가 ${prev.drop} 내려갔어요.`);
+    if (prev.left) lines.push('행복도가 너무 낮아 주민 1명이 마을을 떠났어요.');
+    lines.push(`이번 라운드에는 주민 ${ev.rounds[r].startRes}명이 금 ${ev.rounds[r].income}개를 냈어요.`);
+    showNotice(prev.left ? '😢' : '🏠', `${r - 1}라운드 마을 결과`, lines.join(' '));
+  }
   // 사건 알림
   const evs = (S.game?.events || []).filter(e => e.r === r);
   for (const e of evs){ const k = (S.game.gid || '') + e.key; if (!S.seenEvents.has(k)){ S.seenEvents.add(k); showBanner(e); } }
@@ -77,10 +89,11 @@ function updateGame(){
   else sh.hidden = true;
 }
 let bannerT;
-function showBanner(e){
-  const el = $('#banner'); if (!el) return; const x = evInfo(e);
-  el.innerHTML = `<span class="ico" aria-hidden="true">📰</span><div><h3>사건 발생! ${esc(x.t)}</h3><p>${esc(x.text)}</p></div>`;
-  el.hidden = false; clearTimeout(bannerT); bannerT = setTimeout(() => { el.hidden = true; }, 8000);
+function showBanner(e){ const x = evInfo(e); showNotice('📰', `사건 발생! ${x.t}`, x.text); }
+function showNotice(ico, title, text){
+  const el = $('#banner'); if (!el) return;
+  el.innerHTML = `<span class="ico" aria-hidden="true">${ico}</span><div><h3>${esc(title)}</h3><p>${esc(text)}</p></div>`;
+  el.hidden = false; clearTimeout(bannerT); bannerT = setTimeout(() => { el.hidden = true; }, 9000);
 }
 function pickerHtml(){
   return `<div class="panel" role="dialog" aria-modal="true">
@@ -101,6 +114,7 @@ function sheetHtml(){
   if (s.type === 'trade') return head(`${NI[s.to].flag} ${NI[s.to].name} 세관`, `${NI[s.to].name}가 잘 만드는 자원: ${RES[NI[s.to].spec][1]} ${RES[NI[s.to].spec][0]}`) + tradeHtml(r, s.to);
   if (s.type === 'offers') return head('들어온 제안', '어디에서든 수락하거나 거절할 수 있어요') + offersHtml(r);
   if (s.type === 'board') return head('무역 광장 게시판') + boardHtml(r);
+  if (s.type === 'resident') return head(`주민 ${RESIDENT_NAMES[s.slot % RESIDENT_NAMES.length]}`, `${NI[S.me].name} 주민의 부탁`) + residentHtml(r, s.slot);
   if (s.type === 'plan') return head(`${NI[S.me].name} 무역 계획서`, '무엇을 만들고, 모자란 자원을 어느 나라에서 구할지 정해요') + planHtml(r);
   return head('');
 }
@@ -128,11 +142,36 @@ function factoryHtml(r){
   const dots = Array.from({length:BONUS_KINDS}, (_, i) => i).map(i => `<i class="${i < sc.kinds ? 'on' : ''}"></i>`).join('');
   return `<div class="sect"><span class="label">우리 창고</span>${stockHtml(r)}</div>
     <div class="sect"><span class="label">만들 수 있는 물건 · 빨간 자원이 모자라요</span><div class="items">${cards}</div></div>
+    ${villageHtml(r, ok)}
     <div class="sect"><span class="label">우리 나라 개발 · 건물은 게임이 끝날 때까지 남아요</span><div class="items">${buildCards(r, ok)}</div></div>
     <div class="scorebar"><span>이번 라운드 <span class="big">${sc.total}점</span></span>
     <span class="small">물건 종류 <span class="dots">${dots}</span> ${sc.kinds}/${BONUS_KINDS} ${sc.bonus ? `<b style="color:var(--ok)">보너스 +${BONUS} 달성!</b>` : `(${BONUS_KINDS}가지면 +${BONUS})`}</span>
     ${sc.dev ? `<span class="small">개발 점수 +${sc.dev}</span>` : ''}</div>
     ${r === 1 && !planOf(S.me) ? `<p class="lockbox">물건을 다 만들었으면 광장의 다른 나라 세관에서 <b>전시판</b>을 보고, 화면 위 <b>계획서</b> 버튼으로 무역 계획을 세워요. <button class="btn sm" data-act="sheet" data-t="plan">계획서 쓰기</button></p>` : ''}`;
+}
+/* 우리 마을: 주민, 행복도, 금 */
+function villageHtml(r, ok){
+  const e = econ(S.me), price = hirePrice(e.res), qs = questsOf(S.me, r);
+  const next = goldRate(e.hap);
+  return `<div class="sect"><span class="label">우리 마을 · 주민이 행복하면 금을 더 많이 내요</span>
+    <div class="village">
+      <div class="vstat"><span class="big">${e.rate.face}</span><div><b>행복도 ${e.hap}</b><div class="hbar"><i style="width:${e.hap}%"></i></div><span class="small muted">${next.label} · 주민 1명이 라운드마다 금 ${next.gold}개</span></div></div>
+      <div class="vstat"><span class="big">🏠</span><div><b>주민 ${e.res}명</b><span class="small muted" style="display:block">행복도가 ${VILLAGE.leaveBelow}보다 낮게 라운드가 끝나면 1명이 떠나요</span></div></div>
+      <div class="vstat"><span class="big">🪙</span><div><b>금 ${goldAvail(S.me)}개</b><button class="btn ok sm" data-act="hire" style="margin-top:6px" ${ok && e.res < VILLAGE.residentsMax && goldAvail(S.me) >= price ? '' : 'disabled'}>주민 데려오기 (금 ${price})</button></div></div>
+    </div>
+    <div class="cost">${qs.map((q, i) => `<span class="chip ${questDone(S.me, r, i) ? 'done' : ''}">${questDone(S.me, r, i) ? '♥' : '!'} ${RESIDENT_NAMES[i % RESIDENT_NAMES.length]}: ${q.kind === 'craft' ? II[q.item].i + ' ' + II[q.item].name : RES[q.res][1] + ' ×' + q.cost[q.res]}</span>`).join('')}</div>
+    <p class="small muted">주민 머리 위 <b>!</b>는 부탁이 있다는 뜻이에요. 주민에게 걸어가서 부탁을 들어주세요. 못 들어준 부탁 1개마다 라운드가 끝날 때 행복도가 ${VILLAGE.questDown} 내려가요.</p></div>`;
+}
+function residentHtml(r, slot){
+  const np = needPlay(); if (np) return np;
+  const q = questsOf(S.me, r)[slot], e = econ(S.me); if (!q) return '<p class="lockbox">이 주민은 이번 라운드에 부탁이 없어요.</p>';
+  const done = questDone(S.me, r, slot), a = avail(S.me, r), ok = writable() && !S.busy;
+  const cost = RK.filter(k => q.cost[k]).map(k => `<span class="chip ${a[k] < q.cost[k] ? 'short' : ''}">${RES[k][1]} ${RES[k][0]} ×${q.cost[k]}</span>`).join('');
+  return `<div class="talk"><span class="who-ic"><img src="${animalPortrait(S.me)}" alt=""></span><p class="bubble">${done ? '정말 고마워요! 덕분에 우리 마을이 더 행복해졌어요. ♥' : esc(q.text)}</p></div>
+    ${done ? '' : `<div class="sect"><span class="label">${q.kind === 'craft' ? '만드는 데 필요한 자원' : '필요한 자원'} · 빨간 자원이 모자라요</span><div class="cost">${cost}</div></div>
+    <p class="small muted">들어주면 행복도 +${VILLAGE.questUp}, 금 +${VILLAGE.questGold}, 점수 +${VILLAGE.questPoint}. ${q.kind === 'import' ? '우리 나라에서는 잘 나지 않는 자원이라 다른 나라와 거래해서 구해야 해요.' : ''}</p>
+    <div class="row"><button class="btn ok" data-act="quest" data-slot="${slot}" ${has(a, q.cost) && ok ? '' : 'disabled'}>부탁 들어주기</button></div>`}
+    <p class="small muted">지금 행복도 ${e.hap} ${e.rate.face}</p>`;
 }
 function buildCards(r, ok){
   const a = avail(S.me, r);
@@ -150,7 +189,7 @@ function exhibitHtml(r, to){
   const a = avail(to, r), n = NI[to], blds = BUILDINGS.filter(B => builtOf(to, B.id));
   return `<div class="sect"><span class="label">${n.flag} ${n.name} 창고 전시판 · 지금 가진 자원</span>
     <div class="stock">${RK.map(k => `<div class="crate ${a[k] ? '' : 'zero'} ${k === n.spec ? 'spec' : ''}"><span class="top">${RES[k][1]} ${RES[k][0]}</span><span class="n">${a[k]}</span></div>`).join('')}</div>
-    <p class="small muted">개발한 건물: ${blds.length ? blds.map(B => `${B.i} ${B.name}`).join(', ') : '아직 없어요'}</p></div>`;
+    <p class="small muted">금 ${econ(to).gold}개 · 주민 ${econ(to).res}명 · 행복도 ${econ(to).hap} ${econ(to).rate.face} · 개발한 건물: ${blds.length ? blds.map(B => `${B.i} ${B.name}`).join(', ') : '아직 없어요'}</p></div>`;
 }
 /* 무역 계획서 */
 function planNeeds(t){ const c = targetCost(t), a = avail(S.me, round()), need = {}; for (const k of RK) if ((c[k] || 0) > (a[k] || 0)) need[k] = c[k] - (a[k] || 0); return need; }
@@ -184,17 +223,20 @@ function tradeHtml(r, to){
   if (bl.has(S.me)) return `<p class="lockbox bad">⛔ 이번 라운드에 우리 나라는 다른 나라와 거래할 수 없어요.</p>`;
   if (bl.has(to)) return `<p class="lockbox bad">⛔ ${NI[to].name}는 이번 라운드에 무역을 막았어요. 세관 문이 닫혀 있어요. 다른 나라에서 필요한 자원을 구해 보세요.</p>`;
   const ok = writable() && !S.busy, a = avail(S.me, r), dr = S.draft;
-  const steps = side => `<div class="steps">${RK.map(k => {
-    const v = dr[side][k] || 0, max = side === 'give' ? a[k] : 9;
-    return `<div class="step ${v ? 'has' : ''}"><span class="nm">${RES[k][1]} ${RES[k][0]}</span><span class="ctl">
-      <button data-act="step" data-side="${side}" data-res="${k}" data-dir="-" ${v ? '' : 'disabled'} aria-label="${RES[k][0]} 줄이기">−</button>
+  const steps = side => `<div class="steps">${BAGK.map(k => {
+    const v = dr[side][k] || 0, gold = k === 'gold';
+    const max = gold ? (side === 'give' ? goldAvail(S.me) : 30) : (side === 'give' ? a[k] : 9);
+    const nm = gold ? '🪙 금' : `${RES[k][1]} ${RES[k][0]}`;
+    return `<div class="step ${v ? 'has' : ''} ${gold ? 'goldstep' : ''}"><span class="nm">${nm}</span><span class="ctl">
+      <button data-act="step" data-side="${side}" data-res="${k}" data-dir="-" ${v ? '' : 'disabled'} aria-label="${nm} 줄이기">−</button>
       <span class="v">${v}</span>
-      <button data-act="step" data-side="${side}" data-res="${k}" data-dir="+" ${v < max ? '' : 'disabled'} aria-label="${RES[k][0]} 늘리기">+</button></span></div>`;
+      <button data-act="step" data-side="${side}" data-res="${k}" data-dir="+" ${v < max ? '' : 'disabled'} aria-label="${nm} 늘리기">+</button></span></div>`;
   }).join('')}</div>`;
   const mine = S.trades.filter(t => t.r === r && t.from === S.me && t.to === to && t.status === 'pending');
   const theirs = S.trades.filter(t => t.r === r && t.from === to && t.to === S.me && t.status === 'pending').length;
   return `${exhibitHtml(r, to)}<div class="sect"><span class="label">우리 창고</span>${stockHtml(r)}</div>
     ${theirs ? `<p class="lockbox">${NI[to].name}가 보낸 제안이 ${theirs}건 있어요. <button class="btn sm" data-act="sheet" data-t="offers">제안 보기</button></p>` : ''}
+    <p class="small muted">자원끼리 바꾸는 물물교환도, 🪙 금을 주고 사거나 금을 받고 파는 것도 돼요.</p>
     <div class="sect"><span class="label">우리가 줄 것 (수출)</span>${steps('give')}</div>
     <div class="sect"><span class="label">우리가 받고 싶은 것 (수입)</span>${steps('get')}</div>
     <div class="row"><button class="btn" data-act="send" ${total(dr.give) && total(dr.get) && ok ? '' : 'disabled'}>제안 보내기</button>
@@ -210,7 +252,7 @@ function offersHtml(r){
   const outgoing = mine.filter(t => t.from === S.me && t.status === 'pending').sort((a, b) => a.at - b.at);
   const inHtml = incoming.length ? incoming.map(t => {
     const blockedPair = bl.has(t.from) || bl.has(S.me) || !S.game.tradeOpen;
-    const canAccept = !blockedPair && has(inv(t.from, r), t.give) && has(avail(S.me, r), t.get);
+    const canAccept = !blockedPair && has(inv(t.from, r), t.give) && has(avail(S.me, r), t.get) && (t.give.gold || 0) <= econ(t.from).gold && (t.get.gold || 0) <= goldAvail(S.me);
     return `<div class="offer incoming"><div>${nTag(t.from)} <span class="small muted">의 제안</span></div>
       ${offerSides(t, false)}
       ${canAccept ? '' : `<p class="small" style="color:var(--bad)">${blockedPair ? '지금은 이 나라와 거래할 수 없어요.' : '자원이 부족해서 지금은 받을 수 없어요.'}</p>`}
@@ -241,6 +283,8 @@ function boardHtml(r){
       <li>라운드가 시작되면 우리 나라는 <b>자원</b>을 받아요. 나라마다 받는 자원이 달라요.</li>
       <li>우리 나라 <b>🏭 공장</b>에 가서 자원으로 물건을 만들면 점수를 얻어요.</li>
       <li>한 라운드에 <b>서로 다른 물건을 ${BONUS_KINDS}가지 이상</b> 만들면 보너스 <b>+${BONUS}점</b>!</li>
+      <li>우리 섬에는 <b>주민</b>이 살아요. 머리 위에 <b>!</b>가 있는 주민에게 가서 <b>부탁</b>을 들어주면 행복도가 올라가요. 못 들어준 채 라운드가 끝나면 행복도가 내려가고, 너무 낮으면 주민이 떠나요.</li>
+      <li>주민은 라운드가 시작될 때 <b>🪙 금</b>을 내요. 행복할수록 더 많이 내요. 금으로 주민을 더 데려오거나 다른 나라와 거래할 수 있어요.</li>
       <li>공장에서 <b>건물을 지어 나라를 개발</b>할 수 있어요. 건물은 게임이 끝날 때까지 남아 계속 도움을 줘요.</li>
       <li>다른 나라와 거래하려면 그 나라의 <b>세관</b>까지 걸어가거나, 그 나라 친구 옆에 가서 말을 걸어요. 세관의 <b>전시판</b>에서 그 나라 창고를 볼 수 있어요.</li>
       <li>화면 위 <b>계획서</b> 버튼으로 무역 계획을 세워요. 1라운드에 써 두면 2라운드에 바로 거래하러 갈 수 있어요.</li>

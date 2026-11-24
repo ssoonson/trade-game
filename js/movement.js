@@ -81,6 +81,7 @@ function findNear(others){
   const me = NI[S.me];
   if (dist(P, me.fac) < 2) return {id:'fac', label:'우리 공장 들어가기', go:() => openSheet({type:'factory'})};
   if (dist(P, me.stall) < 1.9) return {id:'own', label:'우리 세관: 들어온 제안 보기', go:() => openSheet({type:'offers'})};
+  { const i = nearResident(S.me, P.t); if (i >= 0) return {id:'res-' + i, label:`주민 ${RESIDENT_NAMES[i % RESIDENT_NAMES.length]}의 부탁 듣기`, go:() => openSheet({type:'resident', slot:i})}; }
   if (dist(P, BOARD) < 1.7) return {id:'board', label:'게시판 보기', go:() => openSheet({type:'board'})};
   for (const n of NATIONS) if (n.id !== S.me && dist(P, n.stall) < 1.9)
     return {id:'stall-' + n.id, label: gateOpen(n.id) ? `${n.name} 세관에서 거래하기` : `${n.name} 세관 전시판 보기`, go:() => openSheet({type:'trade', to:n.id})};

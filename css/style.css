@@ -183,6 +183,20 @@ input::placeholder,textarea::placeholder{color:#9a8268}
 .chip{display:inline-flex;align-items:center;gap:3px;padding:2px 10px;border-radius:999px;background:var(--panel);border:2px solid var(--edge);font-size:.88rem;font-weight:700;white-space:nowrap}
 .chip.short{background:var(--red-soft);color:var(--red-ink);border-color:#f5b9ab}
 .made{font-size:.85rem;color:var(--ink-2)}
+.res.vil{background:var(--yellow-soft);border-color:#f0d27a}
+.chip.gold{background:var(--yellow-soft);border-color:#f0d27a}
+.chip.done{background:#ffe3ea;border-color:#f6b3c0}
+.step.goldstep{background:var(--yellow-soft)}
+.village{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:10px}
+.vstat{display:flex;gap:10px;align-items:center;padding:12px 14px;border-radius:var(--r);background:var(--well);border:2px solid var(--edge)}
+.vstat .big{font-size:2rem;line-height:1}
+.vstat b{font-family:var(--display);font-weight:400;font-size:1.15rem}
+.hbar{height:12px;border-radius:999px;background:var(--panel);border:2px solid var(--edge);overflow:hidden;margin:4px 0;width:min(160px,100%)}
+.hbar i{display:block;height:100%;background:linear-gradient(90deg,#e4553f,#ffd447 45%,#4fae43);background-size:180px 100%;border-radius:999px}
+.talk{display:flex;gap:12px;align-items:flex-start}
+.who-ic{width:64px;height:64px;flex:none;border-radius:50%;overflow:hidden;background:var(--sky);border:3px solid #fff;box-shadow:0 0 0 3px var(--edge)}
+.who-ic img{width:100%;height:100%;object-fit:cover;object-position:50% 4%;transform:scale(1.35);transform-origin:50% 10%}
+.bubble{position:relative;background:#fff;border:3px solid var(--edge);border-radius:18px;padding:12px 16px;font-family:var(--display);font-size:1.15rem;line-height:1.45}
 .item.built{background:var(--green-soft);border-color:#b9e2a6}
 .crate.spec{border-color:var(--yellow-edge);background:var(--yellow-soft)}
 .scorebar{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;padding:14px 18px;border-radius:var(--r);background:var(--yellow-soft);border:2px solid #f0d27a}

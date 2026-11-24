@@ -10,10 +10,10 @@ function roundBars(){
 function scoreTable(){
   const rows = NATIONS.map(n => {
     const tc = S.trades.filter(t => t.status === 'accepted' && (t.from === n.id || t.to === n.id)).length;
-    return {n, s:[1,2,3].map(r => score(n.id, r).total), tot:totalScore(n.id), tc, bl:BUILDINGS.filter(B => builtOf(n.id, B.id)).map(B => B.i).join(' ')};
+    return {n, s:[1,2,3].map(r => score(n.id, r).total), tot:totalScore(n.id), tc, e:econ(n.id), bl:BUILDINGS.filter(B => builtOf(n.id, B.id)).map(B => B.i).join(' ')};
   }).sort((a, b) => b.tot - a.tot);
-  return `<div class="tablewrap"><table><thead><tr><th>나라</th><th>1라운드</th><th>2라운드</th><th>3라운드</th><th>합계</th><th>거래 수</th><th>건물</th></tr></thead><tbody>
-    ${rows.map(x => `<tr><td>${nTag(x.n.id)}</td>${x.s.map(v => `<td>${v}</td>`).join('')}<td class="tot">${x.tot}</td><td>${x.tc}</td><td>${x.bl || '-'}</td></tr>`).join('')}
+  return `<div class="tablewrap"><table><thead><tr><th>나라</th><th>1라운드</th><th>2라운드</th><th>3라운드</th><th>합계</th><th>거래 수</th><th>주민</th><th>행복도</th><th>금</th><th>건물</th></tr></thead><tbody>
+    ${rows.map(x => `<tr><td>${nTag(x.n.id)}</td>${x.s.map(v => `<td>${v}</td>`).join('')}<td class="tot">${x.tot}</td><td>${x.tc}</td><td>${x.e.res}명</td><td>${x.e.rate.face} ${x.e.hap}</td><td>${x.e.gold}</td><td>${x.bl || '-'}</td></tr>`).join('')}
   </tbody></table></div>`;
 }
 /* 계획서와 실제 무역 비교 */
@@ -24,6 +24,11 @@ function planCheck(nid){
   const got = res => S.trades.some(t => t.status === 'accepted' && ((t.to === nid && t.from === p.from[res] && t.give[res]) || (t.from === nid && t.to === p.from[res] && t.get[res])));
   const rows = RK.filter(k => p.from[k]).map(k => `<span class="chip">${got(k) ? '✔' : '✘'} ${RES[k][1]} ← ${NI[p.from[k]].name}</span>`).join('');
   return `<span class="cost"><span class="chip">${did ? '✔' : '✘'} 목표: ${targetName(p.target)}</span>${rows}</span>`;
+}
+function villageHistory(nid){
+  const e = econ(nid), rs = Object.entries(e.rounds);
+  if (!rs.length) return '<span class="muted small">아직 기록이 없어요</span>';
+  return `<span class="cost">${rs.map(([r, x]) => `<span class="chip">${r}R 주민 ${x.startRes}명 · 금 +${x.income} · 부탁 ${x.done}/${x.startRes}${x.ended ? ` · 행복도 ${x.endHap}${x.left ? ' · 1명 떠남' : ''}` : ''}</span>`).join('')}<span class="chip gold">지금 금 ${e.gold} · 행복도 ${e.hap} ${e.rate.face}</span></span>`;
 }
 function myRecord(){
   if (!S.me) return `<section class="card"><h3>우리 나라 기록</h3><p class="muted" style="margin-top:8px">무역 게임에서 나라를 고르면 우리 나라의 무역 기록이 여기에 나와요.</p></section>`;
@@ -41,7 +46,8 @@ function myRecord(){
     <b>수입</b><span class="cost">${bagChips(inn)}</span>
     <b>만든 물건</b><span class="cost">${madeHtml}</span>
     <b>지은 건물</b><span class="cost">${BUILDINGS.filter(B => builtOf(me, B.id)).map(B => `<span class="chip">${B.i} ${B.name}</span>`).join('') || '<span class="muted small">없음</span>'}</span>
-    <b>계획</b><span>${planCheck(me)}</span></div></section>`;
+    <b>계획</b><span>${planCheck(me)}</span>
+    <b>마을</b><span>${villageHistory(me)}</span></div></section>`;
 }
 function viewWrap(){
   const r1 = roundTotal(1), r2 = roundTotal(2);

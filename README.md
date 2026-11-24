@@ -16,6 +16,7 @@ trade-game-web/
    ├─ map.js               지도 모양 (섬, 다리, 건물 위치)
    ├─ state.js             게임 상태와 자원·점수 계산
    ├─ firebase-config.js   Firebase 연결 설정 (GitHub에서 직접 넣을 때)
+   ├─ village.js           주민·행복도·금·부탁(퀘스트) 계산과 주민 그리기
    ├─ store.js             Firebase 연결, 학생용 링크, 선생님 비밀번호 확인, 연습 모드
    ├─ actions.js           버튼을 눌렀을 때 하는 일
    ├─ movement.js          캐릭터 이동, 충돌, 친구 위치 공유
@@ -36,6 +37,7 @@ trade-game-web/
 | 캐릭터 그림 바꾸기 | `assets/characters/` | `<동물>.png`(앞), `<동물>_side.png`(오른쪽을 보는 옆), `<동물>_back.png`(뒤). 같은 이름으로 덮어쓰면 돼요 |
 | 물건 종류, 필요한 자원, 점수 | `js/data/game-data.js` | `ITEMS` |
 | 나라 개발 건물(이름, 비용, 효과), 건물 점수 | `js/data/game-data.js` | `BUILDINGS`, `BUILD_PT` |
+| 주민 수·행복도·금 규칙, 부탁 보상 | `js/data/game-data.js` | `VILLAGE`, `GOLD_RATE`, `RESIDENT_NAMES` |
 | 보너스 점수, 보너스 기준 개수 | `js/data/game-data.js` | `BONUS`, `BONUS_KINDS` |
 | 사건 카드 추가·수정 | `js/data/game-data.js` | `EVENTS` (한 줄 복사 후 `id`만 다르게) |
 | 정리 질문, 실제 세계 연결, 수업 흐름 | `js/data/lesson-content.js` | `WRAP_QUESTIONS`, `WRAP_REAL_WORLD`, `CLASS_FLOW` |
