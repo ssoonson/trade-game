@@ -95,7 +95,13 @@ function updateGame(){
   } else { sh.hidden = true; sh.dataset.key = ''; }
   // 새 문제 · 새 배지 알림
   const qz = quizOpen();
-  if (qz && S.seenQuiz !== qz.id){ S.seenQuiz = qz.id; if (!quizAnsweredHere(qz.id)) showNotice('❓', '선생님 문제가 나왔어요!', '화면 위 문제 버튼을 눌러 풀어 보세요. 맞히면 우리 나라 특산 자원을 더 받아요.'); }
+  if (qz && S.seenQuiz !== qz.id){
+    S.seenQuiz = qz.id;
+    if (!quizAnsweredHere(qz.id)){
+      showNotice('❓', '선생님 문제가 나왔어요!', '화면 위 ❓ 문제 버튼을 눌러 풀어 보세요. 맞히면 우리 나라 특산 자원을 더 받아요.');
+      if (!S.picker && S.sheet?.type !== 'reflect'){ S.sheet = {type:'quiz'}; sh.innerHTML = `<div class="panel" role="dialog" aria-modal="true">${sheetHtml()}</div>`; sh.dataset.key = 'quiz:'; sh.hidden = false; }
+    }
+  }
   const gk = 'trade-badges:' + (S.game?.gid || '') + ':' + S.me;
   let seen; try { seen = new Set(JSON.parse(localStorage.getItem(gk) || '[]')); } catch { seen = new Set(); }
   const fresh = badgesOf(S.me).filter(b => !seen.has(b.id));

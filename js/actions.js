@@ -4,15 +4,22 @@
 /* ================= 행동 ================= */
 let toastT;
 function toast(msg){ const el = $('#toast'); el.textContent = msg; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 2600); }
+/* 저장하는 동안 같은 버튼을 두 번 누르지 않게 막아요. 성공하면 true 를 돌려줘요.
+   서버 응답이 너무 늦으면(8초) 버튼을 다시 풀어 줘요 — 화면이 멈춘 것처럼 보이지 않게. */
 async function guarded(fn){
-  if (S.busy || !store) return; S.busy = true; render();
-  try { await fn(); }
+  if (!store) return false;
+  if (S.busy){ toast('앞에 누른 것을 저장하는 중이에요. 잠시 뒤 다시 눌러 주세요.'); return false; }
+  S.busy = true; render();
+  const slow = setTimeout(() => { if (S.busy){ S.busy = false; render(); toast(S.online === false ? '인터넷 연결이 끊겼어요. 연결되면 자동으로 저장돼요.' : '저장이 늦어지고 있어요. 인터넷 연결을 확인해 주세요.'); } }, 8000);
+  try { await fn(); return true; }
   catch (e) {
+    console.error(e);
     toast(S.online === false ? '인터넷 연결이 끊겼어요. 연결되면 다시 눌러 보세요.' : '저장하지 못했어요. 잠시 뒤 다시 눌러 보세요.');
+    return false;
   }
-  finally { S.busy = false; render(); }
+  finally { clearTimeout(slow); S.busy = false; render(); }
 }
-function setGame(patch){ const g = {...(S.game || {gid:null, round:0, tradeOpen:false, phase:'lobby', endsAt:null, events:[]}), ...patch}; return guarded(() => store.setGame(g)); }
+function setGame(patch){ const g = {...(S.game || {gid:null, round:0, tradeOpen:false, phase:'lobby', endsAt:null, events:[]}), ...patch, v:APP_VERSION}; return guarded(() => store.setGame(g)); }
 function openSheet(s){ S.sheet = s; if (s && s.type === 'trade'){ if (S.draft.to !== s.to) S.draft = {to:s.to, give:{}, get:{}}; } if (s && s.type === 'plan'){ const p = planOf(S.me); S.planDraft = p ? {target:p.target, from:{...p.from}} : (S.planDraft || {target:'', from:{}}); } keys.clear(); P.target = null; render(); }
 
 const ACT = {
@@ -34,6 +41,7 @@ const ACT = {
   /* 세계 */
   interact: () => { if (S.near) S.near.go(); },
   sheet: d => { if (['offers', 'board', 'plan', 'quiz', 'nation'].includes(d.t)) openSheet({type:d.t}); },
+  reload: () => location.reload(),
   close: () => { S.sheet = null; render(); $('#world')?.focus(); },
   make: d => {
     const it = II[d.id], r = round(); if (!it || !playing() || !S.me) return;
@@ -144,7 +152,7 @@ const ACT = {
   /* 선생님: 관세, 문제 */
   tariff: () => {
     const r = round(), nid = S.blockPick, n = Number(S.tariffAmt) || TARIFF_AMOUNTS[0]; if (r < 1) return toast('라운드를 먼저 시작하세요.'); if (!NI[nid]) return;
-    setGame({events:[...S.game.events, {r, kind:'tariff', nation:nid, res:null, n, pid:'', key:newId()}]});
+    setGame({events:[...S.game.events, {r, kind:'tariff', nation:nid, res:null, n, pid:'', key:newId()}]}).then(ok => ok && toast(`${NI[nid].name}에 관세 금 ${n}을 매겼어요.`));
   },
   quizPost: d => {
     const r = round(); if (r < 1) return toast('라운드를 먼저 시작하세요.');
@@ -156,9 +164,9 @@ const ACT = {
       if (!(a < o.length)) return toast('정답 번호를 확인해 주세요.');
       q = {q:qt, o, a};
     }
-    setGame({quiz:{...q, id:newId(), r, open:true}}); toast('학생들에게 문제를 냈어요.');
+    setGame({quiz:{...q, id:newId(), r, open:true}}).then(ok => { if (ok) toast('학생들에게 문제를 냈어요. 학생 화면 위에 ❓ 문제 버튼이 나타나요.'); });
   },
-  quizClose: () => { if (S.game?.quiz) setGame({quiz:{...S.game.quiz, open:false}}); },
+  quizClose: () => { if (S.game?.quiz) setGame({quiz:{...S.game.quiz, open:false}}).then(ok => ok && toast('문제를 닫았어요.')); },
   cancel: d => { const t = S.trades.find(x => x.id === d.id); if (t && t.status === 'pending') guarded(() => store.updateTrade(t.id, {status:'cancelled'})); },
   /* 선생님 */
   round: d => { const r = Number(d.r); if (!ROUNDS[r]) return; S.confirmReset = false; setGame({gid:S.game?.gid || newId(), round:r, tradeOpen:r >= 2, phase:'play', endsAt:null}); },

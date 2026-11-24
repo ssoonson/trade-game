@@ -14,14 +14,19 @@ function questsOf(nid, r){
   const gid = S.game?.gid || 'none', count = residentsAtStart(nid, r);
   const key = gid + '|' + nid + '|' + r + '|' + count;
   if (questCache.has(key)) return questCache.get(key);
-  const R = seeded(hashStr(key)), n = NI[nid], out = [];
+  const R = seeded(hashStr(key)), n = NI[nid], out = []; let budget = {};
   for (let slot = 0; slot < count; slot++){
-    if (r === 1 && slot === 0){
-      // 1라운드 첫 부탁은 우리 나라 자원만으로 들어줄 수 있게 해요
-      const it = ITEMS.find(x => has(n.income, x.cost));
-      if (it) out.push({slot, kind:'craft', item:it.id, cost:{...it.cost}, text:`공장에서 ${it.i} ${it.name}을(를) 만들어 주세요!`});
-      else out.push({slot, kind:'local', res:n.spec, cost:{[n.spec]:3}, text:`우리 나라 특산물 ${RES[n.spec][1]} ${RES[n.spec][0]} 3개를 나눠 주세요!`});
-      R(); R(); continue;
+    if (r === 1){
+      // 1라운드는 무역이 닫혀 있어요. 부탁을 모두 합쳐도 우리 나라 자원만으로 들어줄 수 있게 해요
+      if (slot === 0) budget = {...n.income};
+      const it = slot === 0 ? ITEMS.find(x => has(budget, x.cost)) : null;
+      if (it){ sub(budget, it.cost); out.push({slot, kind:'craft', item:it.id, cost:{...it.cost}, text:`공장에서 ${it.i} ${it.name}을(를) 만들어 주세요!`}); }
+      else {
+        const ks = RK.filter(k => (budget[k] || 0) >= 1), k = ks.includes(n.spec) ? n.spec : (ks[Math.floor(R() * ks.length)] || n.spec);
+        budget[k] = (budget[k] || 0) - 1;
+        out.push({slot, kind:'local', res:k, cost:{[k]:1}, text:`우리 나라 ${RES[k][1]} ${RES[k][0]} 1개를 나눠 주세요!`});
+      }
+      continue;
     }
     if (R() < .5){
       const it = ITEMS[Math.floor(R() * ITEMS.length)];

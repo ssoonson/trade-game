@@ -26,7 +26,8 @@ function render(){
   else if (S.dbError) note = '학급 게임 데이터를 읽을 수 없어요. 선생님께 Firebase 규칙 설정을 확인해 달라고 해 주세요.';
   else if (S.slow) note = '학급 게임 정보를 아직 불러오지 못했어요. 인터넷 연결을 확인해 주세요.';
   else if (S.loaded && S.online === false) note = '인터넷 연결이 끊겼어요. 다시 연결하는 중이에요…';
-  $('#notice').innerHTML = note ? `<p class="notice">${esc(note)}</p>` : '';
+  const stale = S.game?.v && S.game.v > APP_VERSION;
+  $('#notice').innerHTML = (note ? `<p class="notice">${esc(note)}</p>` : '') + (stale ? `<p class="notice">게임이 새 버전으로 바뀌었어요. <button class="btn sm" data-act="reload">새로 고침</button></p>` : '');
   const key = S.view + ':' + S.canTeach + ':' + S.mode;
   if (mounted !== S.view || mountedTeach !== key){
     $('#app').innerHTML = VIEWS[S.view].mount(); mounted = S.view; mountedTeach = key;

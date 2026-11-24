@@ -7,6 +7,9 @@ const NI = Object.fromEntries(NATIONS.map(n => [n.id, n]));
 const II = Object.fromEntries(ITEMS.map(x => [x.id, x]));
 const BI = Object.fromEntries(BUILDINGS.map(x => [x.id, x]));
 
+/* 앱 버전 — 고칠 때마다 올려요. 선생님 기기와 버전이 다르면 학생 화면에 '새로 고침' 안내가 떠요. */
+const APP_VERSION = '2026.11.24-1';
+
 /* ================= 상태 ================= */
 const S = {
   mode:'connecting', loaded:false, slow:false, dbError:false,
@@ -42,7 +45,7 @@ function cleanGame(d){
   const events = Array.isArray(d.events) ? d.events.filter(e => e && NI[e.nation] && (e.kind === 'block' || e.kind === 'tariff' || (e.kind === 'res' && RES[e.res])))
     .map(e => ({r:Number(e.r)||0, kind:e.kind, nation:e.nation, res:e.kind === 'res' ? e.res : null, n:Math.max(-20, Math.min(20, Math.floor(Number(e.n)||0))), pid:typeof e.pid === 'string' ? e.pid : '', key:typeof e.key === 'string' ? e.key : ''})) : [];
   return {gid:typeof d.gid === 'string' ? d.gid : null, round:[0,1,2,3].includes(d.round) ? d.round : 0, tradeOpen:!!d.tradeOpen,
-    phase:['lobby','play','end'].includes(d.phase) ? d.phase : 'lobby', endsAt:Number(d.endsAt) || null, events, quiz:cleanQuiz(d.quiz)};
+    phase:['lobby','play','end'].includes(d.phase) ? d.phase : 'lobby', endsAt:Number(d.endsAt) || null, events, quiz:cleanQuiz(d.quiz), v:typeof d.v === 'string' ? d.v.slice(0, 30) : ''};
 }
 function cleanQuiz(q){
   if (!q || typeof q !== 'object' || typeof q.q !== 'string' || !Array.isArray(q.o)) return null;
