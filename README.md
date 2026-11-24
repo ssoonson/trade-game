@@ -17,6 +17,7 @@ trade-game-web/
    ├─ state.js             게임 상태와 자원·점수 계산
    ├─ firebase-config.js   Firebase 연결 설정 (GitHub에서 직접 넣을 때)
    ├─ village.js           주민·행복도·금·부탁(퀘스트) 계산과 주민 그리기
+   ├─ features.js          창고·시장 가격판·무역 협정·관세·비밀 목표·배지·선생님 문제
    ├─ store.js             Firebase 연결, 학생용 링크, 선생님 비밀번호 확인, 연습 모드
    ├─ actions.js           버튼을 눌렀을 때 하는 일
    ├─ movement.js          캐릭터 이동, 충돌, 친구 위치 공유
@@ -38,6 +39,10 @@ trade-game-web/
 | 물건 종류, 필요한 자원, 점수 | `js/data/game-data.js` | `ITEMS` |
 | 나라 개발 건물(이름, 비용, 효과), 건물 점수 | `js/data/game-data.js` | `BUILDINGS`, `BUILD_PT` |
 | 주민 수·행복도·금 규칙, 부탁 보상 | `js/data/game-data.js` | `VILLAGE`, `GOLD_RATE`, `RESIDENT_NAMES` |
+| 창고 크기와 늘리는 값 | `js/data/game-data.js` | `STORAGE` |
+| 시장 기본 시세, 무역 협정 보너스, 관세 금액 | `js/data/game-data.js` | `BASE_PRICE`, `FTA`, `TARIFF_AMOUNTS` |
+| 비밀 목표, 선생님 문제 보상 | `js/data/game-data.js` | `GOALS`, `QUIZ_REWARD` |
+| 선생님 문제 모음, 라운드 성찰 질문 | `js/data/lesson-content.js` | `QUIZ_BANK`, `REFLECT_QUESTIONS` |
 | 보너스 점수, 보너스 기준 개수 | `js/data/game-data.js` | `BONUS`, `BONUS_KINDS` |
 | 사건 카드 추가·수정 | `js/data/game-data.js` | `EVENTS` (한 줄 복사 후 `id`만 다르게) |
 | 정리 질문, 실제 세계 연결, 수업 흐름 | `js/data/lesson-content.js` | `WRAP_QUESTIONS`, `WRAP_REAL_WORLD`, `CLASS_FLOW` |

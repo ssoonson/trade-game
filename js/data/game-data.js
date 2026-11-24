@@ -112,5 +112,37 @@ const GOLD_RATE = [
 /* 주민 이름 (순서대로 붙어요) */
 const RESIDENT_NAMES = ['보리', '콩이', '달이', '솔이', '하늘', '누리', '도담', '라온'];
 
+/* 창고: 자원마다 보관할 수 있는 최대 개수. 금으로 창고를 늘릴 수 있어요. */
+const STORAGE = {
+  base: 10,            // 처음 창고 크기 (자원 한 종류당)
+  step: 5,             // 한 번 늘릴 때마다 +5
+  maxLevel: 3,         // 최대 3번까지 늘릴 수 있어요
+  priceBase: 5,        // 늘리는 값: 5, 8, 11 금
+  priceStep: 3,
+};
+
+/* 시장 가격판: 자원마다 기본 시세(금). 시장에 적으면 비싸지고, 많으면 싸져요. */
+const BASE_PRICE = {grain:1, fish:2, ore:2, oil:3, wood:1, chip:3};
+
+/* 무역 협정(FTA): 맺은 두 나라는 서로 거래할 때마다 점수 +bonus, 관세가 없어요. 게임 끝까지 유지돼요. */
+const FTA = {bonus: 1};
+
+/* 관세 사건 카드에서 고를 수 있는 금액 */
+const TARIFF_AMOUNTS = [1, 2, 3];
+
+/* 비밀 목표: 게임마다 나라별로 하나씩 몰래 정해져요. 이루면 reward 점수. */
+const GOALS = [
+  {id:'export10',  t:'수출 대장',   text:'다른 나라에 자원을 모두 10개 이상 수출하기', reward:10},
+  {id:'res6',      t:'큰 마을',     text:'주민을 6명까지 늘리기', reward:10},
+  {id:'happy85',   t:'행복한 나라', text:'행복도를 85 이상으로 만들기', reward:10},
+  {id:'build2',    t:'개발 계획',   text:'건물을 2개 이상 짓기', reward:10},
+  {id:'partners4', t:'친구 많은 나라', text:'4개 나라와 거래하기', reward:10},
+  {id:'items5',    t:'만능 공장',   text:'서로 다른 물건을 5가지 만들기', reward:10},
+  {id:'gold25',    t:'부자 나라',   text:'금을 25개 모으기', reward:10},
+];
+
+/* 선생님 문제: 학생이 맞히면 그 나라 특산 자원을 perAnswer 개 더 받아요 (문제 하나에 나라마다 최대 maxPerNation 번) */
+const QUIZ_REWARD = {perAnswer: 1, maxPerNation: 4};
+
 /* 별명 최대 글자 수 */
 const NICK_MAX = 6;

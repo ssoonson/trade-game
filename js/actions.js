@@ -33,7 +33,7 @@ const ACT = {
   },
   /* 세계 */
   interact: () => { if (S.near) S.near.go(); },
-  sheet: d => { if (['offers', 'board', 'plan'].includes(d.t)) openSheet({type:d.t}); },
+  sheet: d => { if (['offers', 'board', 'plan', 'quiz', 'nation'].includes(d.t)) openSheet({type:d.t}); },
   close: () => { S.sheet = null; render(); $('#world')?.focus(); },
   make: d => {
     const it = II[d.id], r = round(); if (!it || !playing() || !S.me) return;
@@ -92,6 +92,7 @@ const ACT = {
     if (!total(give) || !total(get)) return toast('주는 것과 받는 것을 하나 이상씩 정하세요.');
     if (!has(avail(S.me, r), give)) return toast('줄 자원이 부족해요.');
     if ((give.gold || 0) > goldAvail(S.me)) return toast('줄 금이 부족해요.');
+    if (!fitsStorage(S.me, r, noGold(get))) return toast(`우리 창고가 가득 차서 받을 수 없어요. (자원마다 ${storageCap(S.me, r)}개까지)`);
     guarded(async () => {
       await store.addTrade({gid:S.game.gid, r, from:S.me, to:dr.to, give, get, status:'pending', at:Date.now()});
       S.draft = {to:dr.to, give:{}, get:{}};
@@ -106,8 +107,58 @@ const ACT = {
     if (bl.has(t.from) || bl.has(t.to)) return toast('이번 라운드에는 이 나라와 거래할 수 없어요.');
     if (!has(inv(t.from, r), t.give) || (t.give.gold || 0) > econ(t.from).gold) return toast(`${NI[t.from].name}의 자원이나 금이 부족해서 거래할 수 없어요.`);
     if (!has(avail(t.to, r), t.get) || (t.get.gold || 0) > goldAvail(t.to)) return toast('우리 나라 자원이나 금이 부족해서 거래할 수 없어요.');
+    if (!fitsStorage(t.to, r, noGold(t.give))) return toast(`우리 창고가 가득 차서 받을 수 없어요. 금으로 창고를 늘려 보세요.`);
+    if (!fitsStorage(t.from, r, noGold(t.get))) return toast(`${NI[t.from].name} 창고가 가득 차서 거래할 수 없어요.`);
+    for (const x of tariffsOf({...t, doneAt:Date.now()})){
+      const g = x.payer === t.to ? goldAvail(t.to) - (t.get.gold || 0) : econ(t.from).gold - (t.give.gold || 0);
+      if (g < x.n) return toast(`${NI[x.payer].name}가 낼 관세 금 ${x.n}개가 부족해요.`);
+    }
     guarded(async () => { const ok = await store.acceptTrade(t.id); toast(ok ? '거래 성공! 자원이 바뀌었어요.' : '이미 처리된 제안이에요.'); });
   },
+  fta: d => {
+    const to = d.to, r = round(); if (!NI[to] || !playing() || !S.game.tradeOpen) return toast('무역이 열린 라운드에만 협정을 맺을 수 있어요.');
+    if (ftaBetween(S.me, to)) return toast('이미 협정을 맺은 나라예요.');
+    if (S.ftas.some(f => f.status === 'pending' && ((f.from === S.me && f.to === to) || (f.from === to && f.to === S.me)))) return toast('이미 협정 제안이 오가고 있어요.');
+    guarded(async () => { await store.addFta({gid:S.game.gid, r, from:S.me, to, status:'pending', at:Date.now()}); toast(`${NI[to].name}에 무역 협정을 제안했어요.`); });
+  },
+  ftaAnswer: d => { const f = S.ftas.find(x => x.id === d.id); if (!f || f.status !== 'pending') return; guarded(async () => { const ok = await store.answerFta(f.id, d.ok === '1'); toast(ok ? (d.ok === '1' ? '무역 협정을 맺었어요! 서로 거래할 때마다 점수 +' + FTA.bonus + ', 관세 없음' : '협정을 거절했어요.') : '이미 처리된 제안이에요.'); }); },
+  ftaCancel: d => { const f = S.ftas.find(x => x.id === d.id); if (f && f.status === 'pending') guarded(() => store.cancelFta(f.id)); },
+  upgrade: () => {
+    if (!playing() || !S.me) return;
+    if (storageLevel(S.me) >= STORAGE.maxLevel) return toast('창고를 더 늘릴 수 없어요.');
+    const price = storagePrice(S.me); if (goldAvail(S.me) < price) return toast(`금이 ${price}개 필요해요.`);
+    guarded(async () => { await store.addUpgrade({gid:S.game.gid, r:round(), nation:S.me, at:Date.now()}); toast(`창고를 늘렸어요! 이제 자원마다 ${storageCap(S.me) + STORAGE.step}개까지 (금 -${price})`); });
+  },
+  quizAns: d => {
+    const q = quizOpen(); if (!q || !S.me) return; if (quizAnsweredHere(q.id)) return toast('이미 답했어요.');
+    const pick = Number(d.o), ok = pick === q.a;
+    try { localStorage.setItem('trade-quiz:' + q.id, String(pick)); } catch {}
+    guarded(async () => { await store.addAnswer({gid:S.game.gid, qid:q.id, r:round(), nation:S.me, ok, at:Date.now()}); toast(ok ? `정답! ${NI[S.me].name}에 ${RES[NI[S.me].spec][1]} ${RES[NI[S.me].spec][0]} +${QUIZ_REWARD.perAnswer}` : `아쉬워요. 정답은 "${q.o[q.a]}"예요.`); });
+  },
+  saveNote: () => {
+    const s = S.sheet; if (!s || s.type !== 'reflect' || !S.me) return;
+    const el = $('#noteText'), text = (el?.value || '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 120);
+    if (!text) return toast('한 줄이라도 적어 주세요.');
+    guarded(async () => { await store.setNote(S.me + '_' + s.r, {text, at:Date.now()}); S.sheet = null; toast('성찰을 저장했어요.'); });
+  },
+  /* 선생님: 관세, 문제 */
+  tariff: () => {
+    const r = round(), nid = S.blockPick, n = Number(S.tariffAmt) || TARIFF_AMOUNTS[0]; if (r < 1) return toast('라운드를 먼저 시작하세요.'); if (!NI[nid]) return;
+    setGame({events:[...S.game.events, {r, kind:'tariff', nation:nid, res:null, n, pid:'', key:newId()}]});
+  },
+  quizPost: d => {
+    const r = round(); if (r < 1) return toast('라운드를 먼저 시작하세요.');
+    let q;
+    if (d.i !== undefined){ const b = QUIZ_BANK[Number(d.i)]; if (!b) return; q = {q:b.q, o:[...b.o], a:b.a}; }
+    else {
+      const qt = ($('#cqQ')?.value || '').trim(), o = ['#cqO0', '#cqO1', '#cqO2', '#cqO3'].map(s => ($(s)?.value || '').trim()).filter(Boolean), a = Number($('#cqA')?.value || 0);
+      if (!qt || o.length < 2) return toast('문제와 보기를 2개 이상 써 주세요.');
+      if (!(a < o.length)) return toast('정답 번호를 확인해 주세요.');
+      q = {q:qt, o, a};
+    }
+    setGame({quiz:{...q, id:newId(), r, open:true}}); toast('학생들에게 문제를 냈어요.');
+  },
+  quizClose: () => { if (S.game?.quiz) setGame({quiz:{...S.game.quiz, open:false}}); },
   cancel: d => { const t = S.trades.find(x => x.id === d.id); if (t && t.status === 'pending') guarded(() => store.updateTrade(t.id, {status:'cancelled'})); },
   /* 선생님 */
   round: d => { const r = Number(d.r); if (!ROUNDS[r]) return; S.confirmReset = false; setGame({gid:S.game?.gid || newId(), round:r, tradeOpen:r >= 2, phase:'play', endsAt:null}); },
@@ -139,5 +190,5 @@ document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]'); if (!el || el.disabled) return;
   const f = ACT[el.dataset.act]; if (f) f(el.dataset);
 });
-document.addEventListener('change', e => { if (e.target.id === 'blockPick') S.blockPick = e.target.value; });
+document.addEventListener('change', e => { if (e.target.id === 'blockPick') S.blockPick = e.target.value; if (e.target.id === 'tariffAmt') S.tariffAmt = e.target.value; });
 

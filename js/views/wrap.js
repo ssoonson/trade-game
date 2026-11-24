@@ -10,10 +10,10 @@ function roundBars(){
 function scoreTable(){
   const rows = NATIONS.map(n => {
     const tc = S.trades.filter(t => t.status === 'accepted' && (t.from === n.id || t.to === n.id)).length;
-    return {n, s:[1,2,3].map(r => score(n.id, r).total), tot:totalScore(n.id), tc, e:econ(n.id), bl:BUILDINGS.filter(B => builtOf(n.id, B.id)).map(B => B.i).join(' ')};
+    return {n, s:[1,2,3].map(r => score(n.id, r).total), tot:totalScore(n.id), tc, e:econ(n.id), gb:goalBonus(n.id), bd:badgesOf(n.id).length, bl:BUILDINGS.filter(B => builtOf(n.id, B.id)).map(B => B.i).join(' ')};
   }).sort((a, b) => b.tot - a.tot);
-  return `<div class="tablewrap"><table><thead><tr><th>나라</th><th>1라운드</th><th>2라운드</th><th>3라운드</th><th>합계</th><th>거래 수</th><th>주민</th><th>행복도</th><th>금</th><th>건물</th></tr></thead><tbody>
-    ${rows.map(x => `<tr><td>${nTag(x.n.id)}</td>${x.s.map(v => `<td>${v}</td>`).join('')}<td class="tot">${x.tot}</td><td>${x.tc}</td><td>${x.e.res}명</td><td>${x.e.rate.face} ${x.e.hap}</td><td>${x.e.gold}</td><td>${x.bl || '-'}</td></tr>`).join('')}
+  return `<div class="tablewrap"><table><thead><tr><th>나라</th><th>1라운드</th><th>2라운드</th><th>3라운드</th><th>합계</th><th>거래 수</th><th>주민</th><th>행복도</th><th>금</th><th>건물</th><th>목표</th><th>배지</th></tr></thead><tbody>
+    ${rows.map(x => `<tr><td>${nTag(x.n.id)}</td>${x.s.map(v => `<td>${v}</td>`).join('')}<td class="tot">${x.tot}</td><td>${x.tc}</td><td>${x.e.res}명</td><td>${x.e.rate.face} ${x.e.hap}</td><td>${x.e.gold}</td><td>${x.bl || '-'}</td><td>${x.gb ? '✔' : '-'}</td><td>${x.bd}</td></tr>`).join('')}
   </tbody></table></div>`;
 }
 /* 계획서와 실제 무역 비교 */
@@ -47,7 +47,10 @@ function myRecord(){
     <b>만든 물건</b><span class="cost">${madeHtml}</span>
     <b>지은 건물</b><span class="cost">${BUILDINGS.filter(B => builtOf(me, B.id)).map(B => `<span class="chip">${B.i} ${B.name}</span>`).join('') || '<span class="muted small">없음</span>'}</span>
     <b>계획</b><span>${planCheck(me)}</span>
-    <b>마을</b><span>${villageHistory(me)}</span></div></section>`;
+    <b>마을</b><span>${villageHistory(me)}</span>
+    <b>비밀 목표</b><span>${(() => { const p = goalProgress(me); return p ? `${esc(p.g.t)}: ${esc(p.g.text)} (${p.cur}/${p.need}) ${p.done ? '✔ +' + p.g.reward + '점' : '✘'}` : '-'; })()}</span>
+    <b>배지</b><span class="cost">${badgeChips(me)}</span>
+    <b>성찰</b><span>${Object.values(S.notes).filter(x => x.nation === me).sort((a, b) => a.r - b.r).map(x => `${x.r}R: ${esc(x.text)}`).join('<br>') || '<span class="muted small">없음</span>'}</span></div></section>`;
 }
 function viewWrap(){
   const r1 = roundTotal(1), r2 = roundTotal(2);

@@ -7,10 +7,32 @@ function mountTeacher(){
   return `<section class="card" style="display:grid;gap:12px">
     <div class="row" style="justify-content:space-between"><div><h2>실시간 무역 지도</h2><p class="sub">전자칠판에 띄워 반 전체와 함께 보세요</p></div><div class="counts" id="tcounts"></div></div>
     <div class="tmapbox"><canvas id="tmap" aria-label="모든 학생의 위치가 보이는 전체 지도"></canvas></div>
-  </section>${shareCard()}<div id="tbody" style="display:grid;gap:20px"></div>`;
+  </section>${shareCard()}
+  <section class="card" style="display:grid;gap:12px"><div class="row" style="justify-content:space-between"><h3>❓ 학생들에게 문제 내기</h3><span class="small muted">맞힌 학생의 나라는 특산 자원 +${QUIZ_REWARD.perAnswer} (나라마다 문제당 최대 ${QUIZ_REWARD.maxPerNation}번)</span></div>
+    <div id="quizStatus"></div>
+    <div class="evgrid">${QUIZ_BANK.map((q, i) => `<button class="evbtn" data-act="quizPost" data-i="${i}"><b>문제 ${i + 1}</b><span>${esc(q.q)}</span></button>`).join('')}</div>
+    <details><summary class="small" style="cursor:pointer;font-weight:700">직접 문제 만들기</summary>
+      <div style="display:grid;gap:8px;margin-top:10px">
+        <input type="text" id="cqQ" placeholder="문제" style="width:100%">
+        <div class="row"><input type="text" id="cqO0" placeholder="보기 1"><input type="text" id="cqO1" placeholder="보기 2"><input type="text" id="cqO2" placeholder="보기 3 (선택)"><input type="text" id="cqO3" placeholder="보기 4 (선택)"></div>
+        <div class="row"><label class="small" for="cqA" style="font-weight:700">정답</label><select id="cqA"><option value="0">보기 1</option><option value="1">보기 2</option><option value="2">보기 3</option><option value="3">보기 4</option></select><button class="btn sm" data-act="quizPost">이 문제 내기</button></div>
+      </div></details>
+  </section>
+  <div id="tbody" style="display:grid;gap:20px"></div>`;
+}
+function notesHtml(){
+  const rows = Object.values(S.notes).sort((a, b) => a.r - b.r);
+  return rows.length ? `<div class="history">${rows.map(x => `<div class="h"><span class="contract">${x.r}라운드</span>${nTag(x.nation)} <span>${esc(x.text)}</span></div>`).join('')}</div>` : '<p class="muted small">라운드가 끝나면 나라마다 한 줄 성찰이 모여요.</p>';
 }
 function updateTeacher(){
   const body = $('#tbody'); if (!body) return;
+  const qs = $('#quizStatus'), qz = S.game?.quiz;
+  if (qs){
+    const ans = qz ? S.answers.filter(a => a.qid === qz.id) : [];
+    qs.innerHTML = qz ? `<div class="offer ${qz.open ? 'incoming' : ''}"><b>${qz.open ? '지금 낸 문제' : '닫은 문제'}: ${esc(qz.q)}</b><span class="small">정답: ${esc(qz.o[qz.a])} · 답한 학생 ${ans.length}명 · 맞힌 학생 ${ans.filter(a => a.ok).length}명</span>
+      <div class="cost">${NATIONS.map(n => `<span class="chip">${n.flag} ${ans.filter(a => a.nation === n.id && a.ok).length}/${ans.filter(a => a.nation === n.id).length}</span>`).join('')}</div>
+      ${qz.open ? `<div class="row"><button class="btn ghost sm" data-act="quizClose">문제 닫기</button></div>` : ''}</div>` : '<p class="muted small">아래에서 문제를 고르면 학생 화면에 바로 나타나요. 라운드 중에만 낼 수 있어요.</p>';
+  }
   const g = S.game, r = round(), ok = !S.busy;
   const playingNow = g && g.phase === 'play';
   updateTeacherCounts(); updateShare();
@@ -41,11 +63,18 @@ function updateTeacher(){
       <div class="evgrid">${EVENTS.map(p => `<button class="evbtn" data-act="event" data-id="${p.id}" ${playingNow && ok ? '' : 'disabled'}><b>${esc(p.t)}</b><span>${esc(p.text)}</span></button>`).join('')}</div>
       <div><span class="label">보호 무역: 고른 나라의 다리를 닫고 무역을 막아요</span><div class="row" style="margin-top:6px">
         <select id="blockPick" aria-label="무역을 막을 나라">${NATIONS.map(n => `<option value="${n.id}" ${S.blockPick === n.id ? 'selected' : ''}>${n.flag} ${n.name}</option>`).join('')}</select>
-        <button class="btn sm" data-act="block" ${playingNow && ok ? '' : 'disabled'}>무역 막기 발동</button></div></div>
+        <button class="btn sm" data-act="block" ${playingNow && ok ? '' : 'disabled'}>무역 막기 발동</button>
+        <select id="tariffAmt" aria-label="관세 금액">${TARIFF_AMOUNTS.map(n => `<option value="${n}" ${Number(S.tariffAmt || TARIFF_AMOUNTS[0]) === n ? 'selected' : ''}>관세 금 ${n}</option>`).join('')}</select>
+        <button class="btn sm" data-act="tariff" ${playingNow && ok ? '' : 'disabled'}>관세 매기기</button></div>
+        <p class="small muted" style="margin-top:6px">관세: 고른 나라로 물건을 수출하는 나라가 거래 한 번에 금을 그 나라에 내요. 무역 협정(FTA)을 맺은 나라는 면제예요.</p></div>
       <div class="list">${evList}</div>
     </section>
   </div>
   <section class="card" style="display:grid;gap:14px"><div class="row" style="justify-content:space-between"><h3>나라별 점수판</h3><span class="small muted">점수는 물건 + 보너스 + 개발 + 주민 부탁 점수</span></div>${scoreTable()}</section>
+  <section class="card" style="display:grid;gap:12px">${marketHtml() || '<h3>📈 시장 가격판</h3><p class="muted small">라운드가 시작되면 나타나요.</p>'}</section>
+  <section class="card" style="display:grid;gap:12px"><div class="row" style="justify-content:space-between"><h3>나라별 비밀 목표 · 배지 · 협정</h3><span class="small muted">학생들은 자기 나라 목표만 봐요</span></div>
+    <div class="list">${NATIONS.map(n => { const p = goalProgress(n.id); return `<div class="offer"><div>${nTag(n.id)} ${p ? `<span class="small">🤫 ${esc(p.g.t)}: ${esc(p.g.text)} (${p.cur}/${p.need}${p.done ? ' ✔' : ''})</span>` : ''}</div><div class="cost">${badgeChips(n.id)}</div><span class="small muted">협정: ${ftaPartners(n.id).map(x => NI[x].name).join(', ') || '없음'}${tariffOf(n.id) ? ` · 관세 금 ${tariffOf(n.id)}` : ''}</span></div>`; }).join('')}</div></section>
+  <section class="card" style="display:grid;gap:12px"><h3>라운드별 한 줄 성찰</h3>${notesHtml()}</section>
   <section class="card" style="display:grid;gap:12px"><div class="row" style="justify-content:space-between"><h3>나라별 무역 계획서</h3><span class="small muted">✔는 실제로 이룬 것</span></div>
     <div class="list">${NATIONS.map(n => `<div class="offer"><div>${nTag(n.id)}</div>${planCheck(n.id)}</div>`).join('')}</div></section>
   <div class="teach">

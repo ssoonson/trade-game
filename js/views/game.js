@@ -59,6 +59,8 @@ function updateGame(){
     <div class="right">
       <span class="glass scorebox"><span class="medal">${icon('star')}</span><span class="score">${sc}점</span><span class="small muted long">이번 라운드 · 합계 ${totalScore(S.me)}점</span></span>
       <button class="hbtn ${ic ? 'hot' : ''}" data-act="sheet" data-t="offers">${icon('mail')}<span>제안</span>${ic ? `<span class="badge">${ic}</span>` : ''}</button>
+      ${quizOpen() && !quizAnsweredHere(quizOpen().id) ? `<button class="hbtn hot" data-act="sheet" data-t="quiz">❓<span>문제</span></button>` : ''}
+      <button class="hbtn" data-act="sheet" data-t="nation" aria-label="우리 나라">${icon('star')}<span class="long">우리 나라</span></button>
       <button class="hbtn ${r === 1 && !planOf(S.me) && S.game?.phase === 'play' ? 'hot' : ''}" data-act="sheet" data-t="plan" aria-label="무역 계획서">${icon('note')}<span class="long">계획서</span></button>
       <button class="hbtn" data-act="sheet" data-t="board" aria-label="규칙">${icon('scroll')}<span class="long">규칙</span></button>
       <button class="hbtn" data-act="openPicker" aria-label="나라 바꾸기">${icon('swap')}<span class="long">나라 바꾸기</span></button>
@@ -79,14 +81,25 @@ function updateGame(){
     if (prev.left) lines.push('행복도가 너무 낮아 주민 1명이 마을을 떠났어요.');
     lines.push(`이번 라운드에는 주민 ${ev.rounds[r].startRes}명이 금 ${ev.rounds[r].income}개를 냈어요.`);
     showNotice(prev.left ? '😢' : '🏠', `${r - 1}라운드 마을 결과`, lines.join(' '));
+    if (!S.notes[S.me + '_' + (r - 1)]) S.sheet = {type:'reflect', r:r - 1};
   }
   // 사건 알림
   const evs = (S.game?.events || []).filter(e => e.r === r);
   for (const e of evs){ const k = (S.game.gid || '') + e.key; if (!S.seenEvents.has(k)){ S.seenEvents.add(k); showBanner(e); } }
   // 패널
   const sh = $('#sheet');
-  if (S.sheet){ sh.innerHTML = `<div class="panel" role="dialog" aria-modal="true">${sheetHtml()}</div>`; sh.hidden = false; }
-  else sh.hidden = true;
+  if (S.sheet){
+    const key = S.sheet.type + ':' + (S.sheet.r || '');
+    if (S.sheet.type !== 'reflect' || sh.dataset.key !== key || sh.hidden){ sh.innerHTML = `<div class="panel" role="dialog" aria-modal="true">${sheetHtml()}</div>`; sh.dataset.key = key; }
+    sh.hidden = false;
+  } else { sh.hidden = true; sh.dataset.key = ''; }
+  // 새 문제 · 새 배지 알림
+  const qz = quizOpen();
+  if (qz && S.seenQuiz !== qz.id){ S.seenQuiz = qz.id; if (!quizAnsweredHere(qz.id)) showNotice('❓', '선생님 문제가 나왔어요!', '화면 위 문제 버튼을 눌러 풀어 보세요. 맞히면 우리 나라 특산 자원을 더 받아요.'); }
+  const gk = 'trade-badges:' + (S.game?.gid || '') + ':' + S.me;
+  let seen; try { seen = new Set(JSON.parse(localStorage.getItem(gk) || '[]')); } catch { seen = new Set(); }
+  const fresh = badgesOf(S.me).filter(b => !seen.has(b.id));
+  if (fresh.length && S.game?.gid){ fresh.forEach(b => seen.add(b.id)); try { localStorage.setItem(gk, JSON.stringify([...seen])); } catch {} if (S.loaded) toast(`배지 획득! ${fresh.map(b => b.i + ' ' + b.t).join(', ')}`); }
 }
 let bannerT;
 function showBanner(e){ const x = evInfo(e); showNotice('📰', `사건 발생! ${x.t}`, x.text); }
@@ -115,6 +128,9 @@ function sheetHtml(){
   if (s.type === 'offers') return head('들어온 제안', '어디에서든 수락하거나 거절할 수 있어요') + offersHtml(r);
   if (s.type === 'board') return head('무역 광장 게시판') + boardHtml(r);
   if (s.type === 'resident') return head(`주민 ${RESIDENT_NAMES[s.slot % RESIDENT_NAMES.length]}`, `${NI[S.me].name} 주민의 부탁`) + residentHtml(r, s.slot);
+  if (s.type === 'quiz') return head('선생님 문제', `맞히면 ${NI[S.me].name}에 ${RES[NI[S.me].spec][1]} ${RES[NI[S.me].spec][0]} +${QUIZ_REWARD.perAnswer}`) + quizHtml();
+  if (s.type === 'nation') return head(`${NI[S.me].flag} ${NI[S.me].name}`, '비밀 목표 · 배지 · 협정') + nationHtml();
+  if (s.type === 'reflect') return head(`${s.r}라운드 돌아보기`, '모둠 친구들과 이야기하고 한 줄로 적어요') + reflectHtml(s.r);
   if (s.type === 'plan') return head(`${NI[S.me].name} 무역 계획서`, '무엇을 만들고, 모자란 자원을 어느 나라에서 구할지 정해요') + planHtml(r);
   return head('');
 }
@@ -125,8 +141,8 @@ function needPlay(){
   return '';
 }
 function stockHtml(r){
-  const a = avail(S.me, r);
-  return `<div class="stock">${RK.map(k => `<div class="crate ${a[k] ? '' : 'zero'}"><span class="top">${RES[k][1]} ${RES[k][0]}</span><span class="n">${a[k]}</span></div>`).join('')}</div>`;
+  const a = avail(S.me, r), cap = storageCap(S.me, r);
+  return `<div class="stock">${RK.map(k => `<div class="crate ${a[k] ? '' : 'zero'} ${a[k] >= cap ? 'full' : ''}"><span class="top">${RES[k][1]} ${RES[k][0]}</span><span class="n">${a[k]}<small>/${cap}</small></span></div>`).join('')}</div>`;
 }
 function factoryHtml(r){
   const np = needPlay(); if (np) return np;
@@ -158,6 +174,7 @@ function villageHtml(r, ok){
       <div class="vstat"><span class="big">${e.rate.face}</span><div><b>행복도 ${e.hap}</b><div class="hbar"><i style="width:${e.hap}%"></i></div><span class="small muted">${next.label} · 주민 1명이 라운드마다 금 ${next.gold}개</span></div></div>
       <div class="vstat"><span class="big">🏠</span><div><b>주민 ${e.res}명</b><span class="small muted" style="display:block">행복도가 ${VILLAGE.leaveBelow}보다 낮게 라운드가 끝나면 1명이 떠나요</span></div></div>
       <div class="vstat"><span class="big">🪙</span><div><b>금 ${goldAvail(S.me)}개</b><button class="btn ok sm" data-act="hire" style="margin-top:6px" ${ok && e.res < VILLAGE.residentsMax && goldAvail(S.me) >= price ? '' : 'disabled'}>주민 데려오기 (금 ${price})</button></div></div>
+      <div class="vstat"><span class="big">📦</span><div><b>창고 자원마다 ${storageCap(S.me, r)}개</b>${storageLevel(S.me) < STORAGE.maxLevel ? `<button class="btn ok sm" data-act="upgrade" style="margin-top:6px" ${ok && goldAvail(S.me) >= storagePrice(S.me) ? '' : 'disabled'}>창고 늘리기 +${STORAGE.step} (금 ${storagePrice(S.me)})</button>` : '<span class="small muted" style="display:block">창고를 끝까지 늘렸어요</span>'}<span class="small muted" style="display:block">넘치는 자원은 받을 수 없고, 라운드 시작 때 넘치는 만큼은 버려져요</span></div></div>
     </div>
     <div class="cost">${qs.map((q, i) => `<span class="chip ${questDone(S.me, r, i) ? 'done' : ''}">${questDone(S.me, r, i) ? '♥' : '!'} ${RESIDENT_NAMES[i % RESIDENT_NAMES.length]}: ${q.kind === 'craft' ? II[q.item].i + ' ' + II[q.item].name : RES[q.res][1] + ' ×' + q.cost[q.res]}</span>`).join('')}</div>
     <p class="small muted">주민 머리 위 <b>!</b>는 부탁이 있다는 뜻이에요. 주민에게 걸어가서 부탁을 들어주세요. 못 들어준 부탁 1개마다 라운드가 끝날 때 행복도가 ${VILLAGE.questDown} 내려가요.</p></div>`;
@@ -236,7 +253,9 @@ function tradeHtml(r, to){
   const theirs = S.trades.filter(t => t.r === r && t.from === to && t.to === S.me && t.status === 'pending').length;
   return `${exhibitHtml(r, to)}<div class="sect"><span class="label">우리 창고</span>${stockHtml(r)}</div>
     ${theirs ? `<p class="lockbox">${NI[to].name}가 보낸 제안이 ${theirs}건 있어요. <button class="btn sm" data-act="sheet" data-t="offers">제안 보기</button></p>` : ''}
-    <p class="small muted">자원끼리 바꾸는 물물교환도, 🪙 금을 주고 사거나 금을 받고 파는 것도 돼요.</p>
+    ${tariffNote(to)}
+    ${ftaBox(to, ok)}
+    <p class="small muted">자원끼리 바꾸는 물물교환도, 🪙 금을 주고 사거나 금을 받고 파는 것도 돼요. 게시판의 <b>시장 가격판</b>에서 요즘 값을 확인해 보세요.</p>
     <div class="sect"><span class="label">우리가 줄 것 (수출)</span>${steps('give')}</div>
     <div class="sect"><span class="label">우리가 받고 싶은 것 (수입)</span>${steps('get')}</div>
     <div class="row"><button class="btn" data-act="send" ${total(dr.give) && total(dr.get) && ok ? '' : 'disabled'}>제안 보내기</button>
@@ -267,7 +286,11 @@ function offersHtml(r){
     return `<div class="h">${t.status === 'accepted' ? `<span class="contract">${contractNo(t)}</span>` : '<span class="pill bad">거절됨</span>'}
       ${nTag(other)} <span class="small">수출</span> ${bagChips(out)} <span class="small">수입</span> ${bagChips(inn)}</div>`;
   }).join('')}</div>` : '<p class="muted small">아직 끝난 거래가 없어요.</p>';
-  return `<div class="sect"><span class="label">우리 창고</span>${stockHtml(r)}</div>
+  const fin = S.ftas.filter(f => f.status === 'pending' && f.to === S.me), fout = S.ftas.filter(f => f.status === 'pending' && f.from === S.me);
+  const ftaHtml = (fin.length || fout.length) ? `<div class="sect"><span class="label">📜 무역 협정 제안</span><div class="list">${fin.map(f => `<div class="offer incoming"><div>${nTag(f.from)} <span class="small">가 무역 협정을 맺자고 해요. 맺으면 서로 거래할 때마다 점수 +${FTA.bonus}, 관세가 없어요.</span></div>
+      <div class="row"><button class="btn ok sm" data-act="ftaAnswer" data-ok="1" data-id="${esc(f.id)}" ${ok ? '' : 'disabled'}>협정 맺기</button><button class="btn ghost sm" data-act="ftaAnswer" data-ok="0" data-id="${esc(f.id)}" ${ok ? '' : 'disabled'}>거절</button></div></div>`).join('')}
+      ${fout.map(f => `<div class="offer"><div class="row" style="justify-content:space-between"><span class="small">→ ${nTag(f.to)}에 보낸 협정 제안</span><button class="btn ghost sm" data-act="ftaCancel" data-id="${esc(f.id)}" ${ok ? '' : 'disabled'}>취소</button></div></div>`).join('')}</div></div>` : '';
+  return `${ftaHtml}<div class="sect"><span class="label">우리 창고</span>${stockHtml(r)}</div>
     <div class="sect"><span class="label">들어온 제안 ${incoming.length}건</span><div class="list">${inHtml}</div></div>
     <div class="sect"><span class="label">우리가 보낸 제안</span><div class="list">${outHtml}</div></div>
     <div class="sect"><span class="label">이번 라운드 무역 기록</span>${hist}</div>`;
@@ -275,6 +298,7 @@ function offersHtml(r){
 function boardHtml(r){
   const evs = (S.game?.events || []).filter(e => e.r === r && S.game.phase === 'play');
   return `${evs.length ? `<div class="sect"><span class="label">이번 라운드 소식</span>${evs.map(e => { const x = evInfo(e); return `<div class="event"><div><h3>${esc(x.t)}</h3><p>${esc(x.text)}</p></div></div>`; }).join('')}</div>` : ''}
+    ${marketHtml()}
     <div class="sect"><span class="label">이렇게 움직여요</span>
     <ul class="qs"><li>방향키나 W·A·S·D로 걸어요. 태블릿에서는 왼쪽 아래 화살표를 누르거나 가고 싶은 곳을 톡 눌러요.</li>
     <li>건물이나 친구 가까이 가면 아래에 버튼이 생겨요. 버튼을 누르거나 Space를 눌러요.</li></ul></div>
@@ -287,6 +311,11 @@ function boardHtml(r){
       <li>주민은 라운드가 시작될 때 <b>🪙 금</b>을 내요. 행복할수록 더 많이 내요. 금으로 주민을 더 데려오거나 다른 나라와 거래할 수 있어요.</li>
       <li>공장에서 <b>건물을 지어 나라를 개발</b>할 수 있어요. 건물은 게임이 끝날 때까지 남아 계속 도움을 줘요.</li>
       <li>다른 나라와 거래하려면 그 나라의 <b>세관</b>까지 걸어가거나, 그 나라 친구 옆에 가서 말을 걸어요. 세관의 <b>전시판</b>에서 그 나라 창고를 볼 수 있어요.</li>
+      <li>창고에는 자원마다 정해진 만큼만 보관할 수 있어요. 금으로 <b>창고를 늘릴</b> 수 있어요.</li>
+      <li>두 나라가 <b>무역 협정(FTA)</b>을 맺으면 서로 거래할 때마다 점수 +${FTA.bonus}, 관세가 없어요.</li>
+      <li><b>관세</b>가 붙은 나라에 물건을 수출하려면 거래 한 번에 금을 내야 해요.</li>
+      <li>우리 나라만 아는 <b>비밀 목표</b>를 이루면 점수를 더 받아요. 화면 위 <b>우리 나라</b> 버튼에서 확인해요.</li>
+      <li>선생님이 낸 <b>문제</b>를 맞히면 우리 나라 특산 자원을 더 받아요.</li>
       <li>화면 위 <b>계획서</b> 버튼으로 무역 계획을 세워요. 1라운드에 써 두면 2라운드에 바로 거래하러 갈 수 있어요.</li>
       <li>무역이 금지되면 다리에 빨간 차단기가 내려와요.</li>
       <li>라운드가 끝나면 남은 자원은 사라지고 모두 자기 나라로 돌아가요.</li>
@@ -298,3 +327,48 @@ function boardHtml(r){
     <div class="sect"><span class="label">나라별 특산 자원</span><div class="cost">${NATIONS.map(n => `<span class="chip">${n.flag} ${n.name} → ${RES[n.spec][1]} ${RES[n.spec][0]}</span>`).join('')}</div></div>`;
 }
 
+
+/* 시장 가격판 */
+function marketHtml(){
+  if (!S.game || round() < 1) return '';
+  const m = marketBoard();
+  return `<div class="sect"><span class="label">📈 시장 가격판 · 시장에 적고 원하는 나라가 많으면 비싸져요</span>
+    <div class="tablewrap"><table class="mini"><thead><tr><th>자원</th><th>시세(참고)</th><th>최근 거래가</th><th>평균</th><th>금 거래 수</th><th>시장에 있는 양</th><th>원하는 양</th></tr></thead><tbody>
+    ${RK.map(k => { const x = m[k]; const arr = x.ref > x.base ? '<span class="up">▲</span>' : x.ref < x.base ? '<span class="down">▼</span>' : ''; return `<tr><td>${RES[k][1]} ${RES[k][0]}</td><td>🪙 ${x.ref} ${arr}</td><td>${x.last ?? '-'}</td><td>${x.avg ?? '-'}</td><td>${x.deals}</td><td>${x.supply}</td><td>${x.demand}</td></tr>`; }).join('')}
+    </tbody></table></div><p class="small muted">시세는 기본값에 "원하는 양 ÷ 시장에 있는 양"을 반영한 참고 가격이에요. 실제 값은 나라끼리 정해요.</p></div>`;
+}
+function tariffNote(to){
+  const r = round(), n1 = tariffOf(to, r), n2 = tariffOf(S.me, r), lines = [];
+  if (n1 && !ftaBetween(S.me, to)) lines.push(`${NI[to].name}는 수입품에 관세를 매겨요. 우리가 ${NI[to].name}로 물건을 보내면 거래 한 번에 금 ${n1}개를 내요.`);
+  if (n2 && !ftaBetween(S.me, to)) lines.push(`우리 나라가 관세를 매기고 있어요. ${NI[to].name}가 우리에게 물건을 보내면 거래 한 번에 금 ${n2}개를 우리에게 내요.`);
+  if ((n1 || n2) && ftaBetween(S.me, to)) lines.push('무역 협정을 맺어서 서로 관세가 없어요.');
+  return lines.length ? `<p class="lockbox">🧾 ${lines.join(' ')}</p>` : '';
+}
+function ftaBox(to, ok){
+  if (ftaBetween(S.me, to)) return `<p class="small" style="font-weight:700;color:var(--green-ink)">📜 ${NI[to].name}와 무역 협정을 맺었어요. 거래할 때마다 점수 +${FTA.bonus}, 관세 없음</p>`;
+  const pend = S.ftas.some(f => f.status === 'pending' && ((f.from === S.me && f.to === to) || (f.from === to && f.to === S.me)));
+  return `<div class="row"><button class="btn ghost sm" data-act="fta" data-to="${to}" ${ok && !pend ? '' : 'disabled'}>📜 무역 협정(FTA) 제안하기</button><span class="small muted">${pend ? '협정 제안이 오가고 있어요' : `맺으면 서로 거래할 때마다 점수 +${FTA.bonus}, 관세 없음`}</span></div>`;
+}
+function quizHtml(){
+  const q = quizOpen(); if (!q) return '<p class="lockbox">지금은 문제가 없어요.</p>';
+  const ans = (() => { try { return localStorage.getItem('trade-quiz:' + q.id); } catch { return null; } })();
+  return `<p class="bubble">${esc(q.q)}</p>
+    <div class="opts" style="display:flex;flex-wrap:wrap;gap:10px">${q.o.map((o, i) => `<button class="opt ${ans !== null && i === q.a ? 'right' : ''} ${ans !== null && Number(ans) === i && i !== q.a ? 'wrong' : ''}" data-act="quizAns" data-o="${i}" ${ans !== null ? 'disabled' : ''}>${esc(o)}</button>`).join('')}</div>
+    <p class="small muted">한 사람이 한 번만 답할 수 있어요. 우리 나라 친구가 맞힐 때마다(최대 ${QUIZ_REWARD.maxPerNation}번) 특산 자원을 받아요.</p>`;
+}
+function nationHtml(){
+  const p = goalProgress(S.me), e = econ(S.me);
+  return `<div class="sect"><span class="label">🤫 비밀 목표 · 우리 나라만 알아요</span>
+    ${p ? `<div class="offer ${p.done ? 'goaldone' : ''}"><b>${esc(p.g.t)}</b><span>${esc(p.g.text)}</span><div class="hbar" style="width:100%"><i style="width:${Math.round(p.cur / p.need * 100)}%"></i></div><span class="small">${p.cur} / ${p.need} ${p.done ? `· 달성! +${p.g.reward}점` : `· 이루면 +${p.g.reward}점`}</span></div>` : '<p class="muted small">게임이 시작되면 목표가 정해져요.</p>'}</div>
+    <div class="sect"><span class="label">🏅 우리 나라 배지</span><div class="cost">${badgeChips(S.me)}</div>
+    <p class="small muted">아직 받을 수 있는 배지: ${BADGES.filter(b => !badgesOf(S.me).includes(b)).map(b => `${b.i} ${esc(b.t)}`).join(' · ') || '모두 받았어요!'}</p></div>
+    <div class="sect"><span class="label">📜 무역 협정을 맺은 나라</span><p>${ftaPartners(S.me).map(n => nTag(n)).join(', ') || '<span class="muted small">아직 없어요. 다른 나라 세관에서 제안할 수 있어요.</span>'}</p></div>
+    <div class="sect"><span class="label">🏠 마을</span><p class="small">주민 ${e.res}명 · 행복도 ${e.hap} ${e.rate.face} · 금 ${goldAvail(S.me)}개 · 창고 자원마다 ${storageCap(S.me)}개</p></div>`;
+}
+function reflectHtml(r){
+  const q = REFLECT_QUESTIONS[(r - 1) % REFLECT_QUESTIONS.length], old = S.notes[S.me + '_' + r];
+  return `<p class="bubble">${esc(q)}</p>
+    <div class="row"><input type="text" id="noteText" maxlength="120" placeholder="한 줄로 적어요" value="${esc(old ? old.text : '')}" style="flex:1 1 260px;width:auto"></div>
+    <div class="row"><button class="btn" data-act="saveNote">저장하기</button><button class="btn ghost" data-act="close">나중에 쓰기</button></div>
+    <p class="small muted">우리 나라 친구 중 한 명이 쓰면 돼요. 정리하기와 선생님 화면에 모여요.</p>`;
+}

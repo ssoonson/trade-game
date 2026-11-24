@@ -61,7 +61,9 @@ function econ(nid){
     for (const t of S.trades) if (t.r === r && t.status === 'accepted'){
       if (t.from === nid) gold += (t.get.gold || 0) - (t.give.gold || 0);
       else if (t.to === nid) gold += (t.give.gold || 0) - (t.get.gold || 0);
+      for (const x of tariffsOf(t)){ if (x.payer === nid) gold -= x.n; if (x.to === nid) gold += x.n; }
     }
+    for (const u of S.upgrades) if (u.nation === nid && u.r === r){ const lv = S.upgrades.filter(v => v.nation === nid && v.at < u.at).length; if (lv < STORAGE.maxLevel) gold -= STORAGE.priceBase + STORAGE.priceStep * lv; }
     let unresolved = 0, left = false, drop = 0;
     if (ended(r)){
       unresolved = Math.max(0, startRes - done.length);
