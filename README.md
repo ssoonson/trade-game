@@ -46,15 +46,10 @@ trade-game-web/
 - `js/` 파일들은 `index.html`에 적힌 **순서대로** 불러와요. 새 파일을 추가하면 `index.html`에 `<script>` 한 줄을 넣어 주세요.
 - 고친 뒤에는 `index.html`을 더블클릭해 연습 모드로 먼저 확인하고, 이상이 없으면 폴더째 다시 웹에 올려요.
 
-## 웹에 올리기
+## 웹에 올리기 (GitHub + Vercel, 자동 배포)
 
-1. Netlify에 로그인한 뒤 `app.netlify.com/drop` 에 **`trade-game-web` 폴더 전체**를 끌어다 놓아요.
-2. 이미 올린 사이트를 고칠 때는 그 사이트의 **Deploys** 화면에 폴더를 다시 끌어다 놓으면 주소가 그대로 유지돼요.
-3. 처음 올렸다면 사이트 주소를 열고 **설정** 탭의 안내에 따라 Firebase를 연결해요.
-
-## GitHub + Netlify로 올리기 (자동 배포)
-
-1. GitHub 저장소에 이 폴더의 **내용물**(index.html, css, js, README.md, netlify.toml)을 올려요.
-2. Netlify에서 **Add new site → Import an existing project → GitHub**를 고르고 저장소를 선택해요.
-3. 빌드 설정은 `netlify.toml`이 알아서 채워 줘요. Build command는 비워 두고, Publish directory는 `.`이에요.
-4. 이후에는 GitHub에 파일을 고쳐 올릴 때마다 Netlify 사이트가 자동으로 바뀌어요.
+1. vercel.com 에 GitHub 계정으로 로그인해요.
+2. **Add New… → Project**를 누르고 `trade-game` 저장소 옆의 **Import**를 눌러요.
+3. Framework Preset은 **Other**, Build Command와 Output Directory는 비워 둔 채 **Deploy**를 눌러요. 빌드 과정이 없는 정적 사이트라 그대로 올라가요.
+4. 생긴 `https://○○○.vercel.app` 주소를 열고 **설정** 탭의 안내에 따라 Firebase를 연결해요.
+5. 이후에는 GitHub `main` 브랜치에 고쳐 올릴 때마다 Vercel 사이트가 자동으로 바뀌어요.

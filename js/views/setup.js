@@ -24,9 +24,9 @@ function mountSetup(){
   const fileWarn = location.protocol === 'file:' ? `<section class="card" style="display:grid;gap:10px;border-color:var(--warn)">
     <h3>⚠️ 지금은 내 컴퓨터에 저장된 파일로 열었어요</h3>
     <p>학생들이 링크로 들어오려면 이 파일을 먼저 웹에 올려야 해요. 웹에 올린 주소로 다시 열어서 설정을 이어 가세요.</p>
-    <ol class="qs"><li><b>app.netlify.com/drop</b> 에 접속해요. 구글 계정으로 가입하거나 로그인할 수 있어요.</li>
-    <li><b>index.html 파일이 들어 있는 폴더</b>를 화면에 끌어다 놓아요.</li>
-    <li>잠시 뒤 생기는 <b>https://○○○.netlify.app</b> 주소를 열어요. 이 주소가 우리 반 게임 주소예요.</li></ol>
+    <ol class="qs"><li>이 폴더를 GitHub 저장소에 올리고, <b>vercel.com</b>에 GitHub 계정으로 로그인해요.</li>
+    <li><b>Add New… → Project</b>에서 저장소를 <b>Import</b>하고, 설정은 그대로 둔 채 <b>Deploy</b>를 눌러요.</li>
+    <li>잠시 뒤 생기는 <b>https://○○○.vercel.app</b> 주소를 열어요. 이 주소가 우리 반 게임 주소예요.</li></ol>
     <p class="small muted">연습만 하고 싶다면 지금 상태에서도 위쪽 <b>무역 게임</b> 탭을 눌러 한 기기 연습 모드로 해 볼 수 있어요.</p></section>` : '';
   return `${fileWarn}
   <section class="card" style="display:grid;gap:8px">
