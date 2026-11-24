@@ -3,7 +3,7 @@
 */
 /* ================= 화면: 선생님 ================= */
 function mountTeacher(){
-  if (!S.canTeach) return `<section class="card"><h3>선생님 화면</h3><p class="muted" style="margin-top:8px">이 화면은 앱을 만든 선생님만 쓸 수 있어요.</p></section>`;
+  if (!S.canTeach) return teacherLoginHtml();
   return `<section class="card" style="display:grid;gap:12px">
     <div class="row" style="justify-content:space-between"><div><h2>실시간 무역 지도</h2><p class="sub">전자칠판에 띄워 반 전체와 함께 보세요</p></div><div class="counts" id="tcounts"></div></div>
     <div class="tmapbox"><canvas id="tmap" aria-label="모든 학생의 위치가 보이는 전체 지도"></canvas></div>

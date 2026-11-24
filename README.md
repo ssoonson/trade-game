@@ -7,6 +7,7 @@
 ```
 trade-game-web/
 ├─ index.html              화면 뼈대와 파일 불러오는 순서
+├─ api/                    Vercel 서버 함수 (config.js: 환경 변수 전달, teacher.js: 선생님 비밀번호 확인)
 ├─ css/style.css           색, 글꼴, 배치
 └─ js/
    ├─ data/
@@ -14,12 +15,13 @@ trade-game-web/
    │  └─ lesson-content.js ★ 정리 질문·실제 세계 연결·수업 흐름
    ├─ map.js               지도 모양 (섬, 다리, 건물 위치)
    ├─ state.js             게임 상태와 자원·점수 계산
-   ├─ store.js             Firebase 연결, 학생용 링크, 연습 모드
+   ├─ firebase-config.js   Firebase 연결 설정 (GitHub에서 직접 넣을 때)
+   ├─ store.js             Firebase 연결, 학생용 링크, 선생님 비밀번호 확인, 연습 모드
    ├─ actions.js           버튼을 눌렀을 때 하는 일
    ├─ movement.js          캐릭터 이동, 충돌, 친구 위치 공유
    ├─ characters.js        동물 탐험가 캐릭터 (assets/characters 그림 사용)
    ├─ world.js             캔버스에 지도 그리기, 게임 루프
-   ├─ views/               화면별 코드 (game, wrap, teacher, setup)
+   ├─ views/               화면별 코드 (game, wrap, teacher, share)
    └─ app.js               탭 전환과 앱 시작 (마지막에 불러옴)
 ```
 
@@ -50,6 +52,52 @@ trade-game-web/
 
 1. vercel.com 에 GitHub 계정으로 로그인해요.
 2. **Add New… → Project**를 누르고 `trade-game` 저장소 옆의 **Import**를 눌러요.
-3. Framework Preset은 **Other**, Build Command와 Output Directory는 비워 둔 채 **Deploy**를 눌러요. 빌드 과정이 없는 정적 사이트라 그대로 올라가요.
-4. 생긴 `https://○○○.vercel.app` 주소를 열고 **설정** 탭의 안내에 따라 Firebase를 연결해요.
-5. 이후에는 GitHub `main` 브랜치에 고쳐 올릴 때마다 Vercel 사이트가 자동으로 바뀌어요.
+3. Framework Preset은 **Other**, Build Command와 Output Directory는 비워 둔 채 **Deploy**를 눌러요.
+4. 이후에는 GitHub `main` 브랜치에 고쳐 올릴 때마다 Vercel 사이트가 자동으로 바뀌어요.
+
+## Firebase 연결하기 (학생 기기끼리 함께 하려면)
+
+먼저 Firebase에서 데이터베이스를 만들어요.
+
+1. console.firebase.google.com → 프로젝트 만들기
+2. **빌드 → Realtime Database → 데이터베이스 만들기** (위치: 싱가포르, 잠금 모드)
+3. **규칙** 탭에 아래를 붙여 넣고 **게시**
+
+```json
+{
+  "rules": {
+    "classes": {
+      "$cls": { ".read": true, ".write": true }
+    }
+  }
+}
+```
+
+4. **⚙️ 프로젝트 설정 → 내 앱 → 웹(</>)**으로 앱을 등록하고 `firebaseConfig` 값을 확인해요.
+
+그다음 둘 중 한 가지로 게임에 알려 줘요.
+
+### 방법 1 (추천): Vercel 환경 변수
+
+Vercel 프로젝트 → **Settings → Environment Variables**에 아래를 넣고, **Deployments → 맨 위 배포의 ⋯ → Redeploy**를 눌러요.
+
+| 이름 | 값 | 필수 |
+|---|---|---|
+| `FIREBASE_DATABASE_URL` | firebaseConfig의 `databaseURL` (예: `https://trade-class-default-rtdb.asia-southeast1.firebasedatabase.app`) | 필수 |
+| `FIREBASE_API_KEY` | firebaseConfig의 `apiKey` | 선택 |
+| `FIREBASE_PROJECT_ID` | firebaseConfig의 `projectId` | 선택 |
+| `CLASS_CODE` | 기본 반 코드 (예: `6-1`) | 선택 |
+| `TEACHER_PIN` | 선생님 화면 비밀번호 (예: 숫자 4~8자리) | 필수 |
+
+값은 `api/config.js`(Vercel 서버 함수)가 읽어서 게임에 전달해요. `TEACHER_PIN`은 `api/teacher.js`에서만 확인하고 브라우저로 보내지 않아요.
+
+### 방법 2: GitHub에서 설정 파일 고치기
+
+`js/firebase-config.js`의 `databaseURL`, `apiKey`, `projectId`, `classCode`를 채워서 커밋해요. 이 파일에 값이 있으면 방법 1보다 먼저 써요. 선생님 비밀번호는 이 파일에 넣지 말고 Vercel의 `TEACHER_PIN`에만 넣어요(이 파일은 누구나 내려받을 수 있어요).
+
+## 수업에서 쓰기
+
+- **선생님**: 사이트 맨 아래 **선생님** 링크(또는 주소 뒤 `#teacher`) → `TEACHER_PIN` 입력 → 선생님 화면에 학생용 QR과 링크가 나와요.
+- **학생**: QR이나 링크(`https://○○○.vercel.app`)만 열면 돼요. 로그인은 필요 없어요.
+- **여러 반**: 주소 뒤에 `?c=6-2`처럼 반 코드를 붙이면 반마다 따로 게임해요.
+- 설정이 없거나 `index.html`을 컴퓨터에서 바로 열면 **한 기기 연습 모드**로 돌아가요.

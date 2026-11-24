@@ -1,24 +1,48 @@
 /* store.js
-   저장소 — Firebase 실시간 데이터베이스 연결, 학생용 링크 만들기, 한 기기 연습 모드를 맡아요.
+   저장소 — Firebase 실시간 데이터베이스 연결(설정은 js/firebase-config.js 또는 Vercel 환경 변수), 학생용 링크, 선생님 비밀번호 확인, 한 기기 연습 모드를 맡아요.
 */
 /* ================= 저장소: Firebase 실시간 데이터베이스 또는 한 기기 연습 모드 ================= */
 let store = null;
 const myPid = (() => { try { let p = sessionStorage.getItem('trade-pid'); if (!p){ p = newId(); sessionStorage.setItem('trade-pid', p); } return p; } catch { return newId(); } })();
 const validUrl = u => typeof u === 'string' && /^https:\/\/[a-z0-9.-]+\.(firebaseio\.com|firebasedatabase\.app)\/?$/.test(u);
 const validCls = k => typeof k === 'string' && /^[A-Za-z0-9_-]{1,20}$/.test(k);
-function b64e(o){ return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
-function b64d(s){ s = s.replace(/-/g, '+').replace(/_/g, '/'); return JSON.parse(decodeURIComponent(escape(atob(s)))); }
+/* 연결 설정 찾기: js/firebase-config.js → Vercel 환경 변수(/api/config) 순서 */
+const DEFAULT_CLASS = 'class1';
 function cleanJoin(j){
   if (!j || !validUrl(j.u) || !validCls(j.k)) return null;
   const s = v => (typeof v === 'string' && /^[A-Za-z0-9_.:-]{1,200}$/.test(v)) ? v : undefined;
-  return {u:j.u.replace(/\/$/, ''), a:s(j.a), p:s(j.p), k:j.k};
+  return {u:j.u.replace(/\/$/, ''), a:s(j.a), p:s(j.p), k:j.k, base:j.base, pinSet:!!j.pinSet, src:j.src};
 }
-function loadJoin(){
-  const q = new URLSearchParams(location.search).get('j');
-  if (q){ try { const j = cleanJoin(b64d(q)); if (j){ try { localStorage.setItem('trade-join', JSON.stringify(j)); } catch {} return j; } } catch {} }
-  try { return cleanJoin(JSON.parse(localStorage.getItem('trade-join') || 'null')); } catch { return null; }
+async function loadConfig(){
+  const urlClass = new URLSearchParams(location.search).get('c');
+  const pick = c => (validCls(urlClass) ? urlClass : (validCls(c) ? c : DEFAULT_CLASS));
+  const f = (typeof FIREBASE_SETTINGS === 'object' && FIREBASE_SETTINGS) || {};
+  if (f.databaseURL){
+    const j = cleanJoin({u:f.databaseURL, a:f.apiKey, p:f.projectId, k:pick(f.classCode), base:validCls(f.classCode) ? f.classCode : DEFAULT_CLASS, src:'file'});
+    if (j){ S.apiAvailable = await apiAvailable(); return j; }
+    S.cfgError = 'js/firebase-config.js 의 databaseURL 모양이 달라요.';
+  }
+  if (location.protocol === 'http:' || location.protocol === 'https:'){
+    try {
+      const ctrl = new AbortController(); const tm = setTimeout(() => ctrl.abort(), 5000);
+      const r = await fetch('api/config', {cache:'no-store', signal:ctrl.signal}); clearTimeout(tm);
+      if (r.ok){
+        const c = await r.json(); S.apiAvailable = true;
+        if (c && c.databaseURL){
+          const j = cleanJoin({u:c.databaseURL, a:c.apiKey, p:c.projectId, k:pick(c.classCode), base:validCls(c.classCode) ? c.classCode : DEFAULT_CLASS, pinSet:c.teacherPinSet, src:'vercel'});
+          if (j) return j;
+          S.cfgError = 'Vercel 환경 변수 FIREBASE_DATABASE_URL 의 모양이 달라요.';
+        }
+      }
+    } catch {}
+  }
+  return null;
 }
-const studentLink = j => location.origin + location.pathname + '?j=' + b64e({u:j.u, a:j.a, p:j.p, k:j.k}) + '#game';
+async function apiAvailable(){
+  if (location.protocol !== 'http:' && location.protocol !== 'https:') return false;
+  try { const r = await fetch('api/config', {cache:'no-store'}); if (!r.ok) return false; const c = await r.json(); S.pinSet = !!c.teacherPinSet; return true; } catch { return false; }
+}
+const studentLink = j => location.origin + location.pathname + (j.k !== j.base ? '?c=' + encodeURIComponent(j.k) : '') + '#game';
 const isTeacher = j => { try { return localStorage.getItem('trade-teacher:' + j.k) === '1'; } catch { return false; } };
 const fbApp = j => {
   const name = 'trade-' + j.k;
@@ -83,19 +107,26 @@ function firebaseStore(j){
     presence: pr => (pr ? meRef.set(pr) : meRef.remove()).catch(() => {}),
   };
 }
-function boot(){
-  const j = loadJoin();
+async function boot(){
+  render();
+  const j = await loadConfig();
   S.join = j;
   if (j && window.firebase){
-    try {
-      S.mode = 'shared'; store = firebaseStore(j); S.canTeach = isTeacher(j);
-      if (!S.canTeach && S.view === 'teacher') location.hash = 'game';
-    } catch (e) { S.mode = 'local'; S.fbError = true; }
+    try { S.mode = 'shared'; store = firebaseStore(j); S.canTeach = isTeacher(j); }
+    catch (e) { S.mode = 'local'; S.fbError = true; }
   } else if (j && !window.firebase){ S.fbError = true; }
-  if (S.mode !== 'shared'){
-    S.mode = 'local'; S.canTeach = true; S.loaded = true; store = localStore();
-    if (!j && !location.hash) location.hash = 'setup';
-  }
+  if (S.mode !== 'shared'){ S.mode = 'local'; S.canTeach = true; S.loaded = true; store = localStore(); }
   render();
 }
+async function teacherLogin(pin){
+  if (!S.join) return;
+  try {
+    const r = await fetch('api/teacher', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({pin})});
+    const d = await r.json();
+    if (d.ok){ try { localStorage.setItem('trade-teacher:' + S.join.k, '1'); } catch {} S.canTeach = true; S.loginMsg = ''; render(); toast('선생님 모드로 들어왔어요.'); return; }
+    S.loginMsg = d.reason === 'no-pin' ? 'Vercel 환경 변수에 TEACHER_PIN 이 아직 없어요. README의 안내대로 넣고 다시 배포해 주세요.' : '비밀번호가 맞지 않아요.';
+  } catch { S.loginMsg = '비밀번호를 확인하지 못했어요. 인터넷 연결을 확인해 주세요.'; }
+  mounted = null; render();
+}
+function teacherLogout(){ try { localStorage.removeItem('trade-teacher:' + S.join.k); } catch {} S.canTeach = false; location.hash = 'game'; render(); }
 

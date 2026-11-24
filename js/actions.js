@@ -98,8 +98,7 @@ const ACT = {
     guarded(() => store.resetAll(g));
   },
   resetNo: () => { S.confirmReset = false; render(); },
-  setupGo: () => { setupGo(); },
-  copyRules: () => copyText(RULES_TEXT),
+  teacherLogout: () => teacherLogout(),
   copyLink: () => S.join && copyText(studentLink(S.join), 'shareLink'),
 };
 document.addEventListener('click', e => {
