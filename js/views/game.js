@@ -12,7 +12,7 @@ function statusPills(){
   const g = S.game, r = round();
   if (!g || g.phase === 'lobby' || r === 0) return `<span class="pill">게임 준비 중 · 선생님을 기다려요</span>`;
   if (g.phase === 'end') return `<span class="pill">게임 끝</span>`;
-  return `<span class="pill acc">${ROUNDS[r].t} · ${ROUNDS[r].s}</span>
+  return `<span class="pill acc">${r}/${nRounds()}라운드 · ${roundInfo(r).s}</span>
     ${g.tradeOpen ? '<span class="pill ok">무역 가능 · 다리 열림</span>' : '<span class="pill bad">무역 금지 · 다리 닫힘</span>'}
     ${g.paused ? '<span class="pill bad">⏸ 모두 멈춤</span>' : ''}
     <span class="timer" data-timer>${timerText()}</span>`;

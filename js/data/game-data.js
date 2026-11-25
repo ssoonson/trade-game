@@ -52,11 +52,16 @@ const ITEMS = [
 const BONUS = 5;
 const BONUS_KINDS = 3;
 
-/* 라운드 이름과 설명 (라운드는 1, 2, 3 세 개예요. 2라운드부터 무역이 자동으로 열려요.) */
-const ROUNDS = {
-  1: {t:'1라운드', s:'혼자 생산하기 · 무역 금지'},
-  2: {t:'2라운드', s:'자유 무역'},
-  3: {t:'3라운드', s:'사건 발생'},
+/* 라운드 수와 라운드별 설명
+   선생님이 새 게임을 준비할 때 ROUND_CHOICES 중에서 고를 수 있어요. 기본은 ROUND_DEFAULT 라운드예요.
+   1라운드는 무역 금지, 2라운드부터 무역이 자동으로 열려요. */
+const ROUND_DEFAULT = 5;
+const ROUND_CHOICES = [3, 4, 5, 6];
+const ROUND_PLANS = {
+  3: ['혼자 생산하기 · 무역 금지', '자유 무역', '사건 발생'],
+  4: ['혼자 생산하기 · 무역 금지', '자유 무역', '위기와 갈등', '마무리 무역'],
+  5: ['혼자 생산하기 · 무역 금지', '자유 무역', '무역 확대 · 나라 개발', '위기와 갈등', '마무리 무역'],
+  6: ['혼자 생산하기 · 무역 금지', '자유 무역', '무역 확대 · 나라 개발', '위기와 갈등', '협력과 회복', '마무리 무역'],
 };
 
 /* 선생님 사건 카드
@@ -131,14 +136,15 @@ const FTA = {bonus: 1};
 const TARIFF_AMOUNTS = [1, 2, 3];
 
 /* 비밀 목표: 게임마다 나라별로 하나씩 몰래 정해져요. 이루면 reward 점수. */
+/* 비밀 목표: need 는 5라운드 기준이에요. scale:true 인 목표는 라운드 수에 맞춰 늘거나 줄어요. 글의 {n} 자리에 숫자가 들어가요. */
 const GOALS = [
-  {id:'export10',  t:'수출 대장',   text:'다른 나라에 자원을 모두 10개 이상 수출하기', reward:10},
-  {id:'res6',      t:'큰 마을',     text:'주민을 6명까지 늘리기', reward:10},
-  {id:'happy85',   t:'행복한 나라', text:'행복도를 85 이상으로 만들기', reward:10},
-  {id:'build2',    t:'개발 계획',   text:'건물을 2개 이상 짓기', reward:10},
-  {id:'partners4', t:'친구 많은 나라', text:'4개 나라와 거래하기', reward:10},
-  {id:'items5',    t:'만능 공장',   text:'서로 다른 물건을 5가지 만들기', reward:10},
-  {id:'gold25',    t:'부자 나라',   text:'금을 25개 모으기', reward:10},
+  {id:'export10',  t:'수출 대장',   text:'다른 나라에 자원을 모두 {n}개 이상 수출하기', need:10, scale:true, reward:10},
+  {id:'res6',      t:'큰 마을',     text:'주민을 {n}명까지 늘리기', need:6, reward:10},
+  {id:'happy85',   t:'행복한 나라', text:'행복도를 {n} 이상으로 만들기', need:85, reward:10},
+  {id:'build2',    t:'개발 계획',   text:'건물을 {n}개 이상 짓기', need:2, reward:10},
+  {id:'partners4', t:'친구 많은 나라', text:'{n}개 나라와 거래하기', need:4, reward:10},
+  {id:'items5',    t:'만능 공장',   text:'서로 다른 물건을 {n}가지 만들기', need:5, reward:10},
+  {id:'gold25',    t:'부자 나라',   text:'금을 {n}개 모으기', need:25, scale:true, reward:10},
 ];
 
 /* 선생님 문제: 학생이 맞히면 그 나라 특산 자원을 perAnswer 개 더 받아요 (문제 하나에 나라마다 최대 maxPerNation 번) */

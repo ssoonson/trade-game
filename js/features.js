@@ -72,18 +72,20 @@ function goalOf(nid){
   const R = seeded(hashStr('goal|' + gid)), order = GOALS.map((g, i) => ({g, k:R()})).sort((a, b) => a.k - b.k).map(x => x.g);
   return order[NI[nid].idx % order.length];
 }
+function goalNeed(g){ return g.scale ? Math.max(2, Math.round(g.need * (nRounds() - 1) / (ROUND_DEFAULT - 1))) : g.need; }
 function goalProgress(nid){
-  const g = goalOf(nid); if (!g) return null;
+  const g0 = goalOf(nid); if (!g0) return null;
+  const need = goalNeed(g0), g = {...g0, text:g0.text.replace('{n}', need)};
   const acc = S.trades.filter(t => t.status === 'accepted' && (t.from === nid || t.to === nid));
-  let cur = 0, need = 1;
+  let cur = 0;
   switch (g.id){
-    case 'export10': need = 10; cur = acc.reduce((s, t) => s + total(noGold(t.from === nid ? t.give : t.get)), 0); break;
-    case 'res6': need = 6; cur = econ(nid).res; break;
-    case 'happy85': need = 85; cur = econ(nid).hap; break;
-    case 'build2': need = 2; cur = S.builds.filter(x => x.nation === nid).length; break;
-    case 'partners4': need = 4; cur = new Set(acc.map(t => t.from === nid ? t.to : t.from)).size; break;
-    case 'items5': need = 5; cur = new Set(S.makes.filter(m => m.nation === nid).map(m => m.item)).size; break;
-    case 'gold25': need = 25; cur = econ(nid).gold; break;
+    case 'export10': cur = acc.reduce((s, t) => s + total(noGold(t.from === nid ? t.give : t.get)), 0); break;
+    case 'res6': cur = econ(nid).res; break;
+    case 'happy85': cur = econ(nid).hap; break;
+    case 'build2': cur = S.builds.filter(x => x.nation === nid).length; break;
+    case 'partners4': cur = new Set(acc.map(t => t.from === nid ? t.to : t.from)).size; break;
+    case 'items5': cur = new Set(S.makes.filter(m => m.nation === nid).map(m => m.item)).size; break;
+    case 'gold25': cur = econ(nid).gold; break;
   }
   return {g, cur:Math.min(cur, need), need, done:cur >= need};
 }

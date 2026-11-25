@@ -170,7 +170,7 @@ const ACT = {
   quizClose: () => { if (S.game?.quiz) setGame({quiz:{...S.game.quiz, open:false}}).then(ok => ok && toast('문제를 닫았어요.')); },
   cancel: d => { const t = S.trades.find(x => x.id === d.id); if (t && t.status === 'pending') guarded(() => store.updateTrade(t.id, {status:'cancelled'})); },
   /* 선생님 */
-  round: d => { const r = Number(d.r); if (!ROUNDS[r]) return; S.confirmReset = false; setGame({gid:S.game?.gid || newId(), round:r, tradeOpen:r >= 2, phase:'play', endsAt:null, startedAt:Date.now() + (S.offset || 0), paused:false, pausedLeft:null}); },
+  round: d => { const r = Number(d.r); if (!(r >= 1 && r <= nRounds())) return; S.confirmReset = false; setGame({gid:S.game?.gid || newId(), round:r, tradeOpen:r >= 2, phase:'play', endsAt:null, startedAt:Date.now() + (S.offset || 0), paused:false, pausedLeft:null}); },
   endGame: () => setGame({phase:'end', endsAt:null, paused:false, pausedLeft:null}),
   /* 전체 멈춤: 타이머도 같이 멈춰요 */
   pause: () => {
@@ -200,8 +200,13 @@ const ACT = {
   unevent: d => setGame({events:S.game.events.filter(e => e.key !== d.key)}),
   reset: () => {
     if (!S.confirmReset){ S.confirmReset = true; render(); return; }
-    S.confirmReset = false; const g = {gid:newId(), round:0, tradeOpen:false, phase:'lobby', endsAt:null, events:[]};
+    S.confirmReset = false; const g = {gid:newId(), rounds:nRounds(), round:0, tradeOpen:false, phase:'lobby', endsAt:null, events:[], v:APP_VERSION};
     guarded(() => store.resetAll(g));
+  },
+  setRounds: () => {
+    const n = Number(S.roundsPick || $('#roundsPick')?.value); if (!ROUND_CHOICES.includes(n)) return;
+    if (round() > n) return toast(`이미 ${round()}라운드까지 했어요. 그보다 적게 줄일 수 없어요.`);
+    setGame({rounds:n}).then(ok => ok && toast(`이번 게임은 ${n}라운드로 해요.`));
   },
   resetNo: () => { S.confirmReset = false; render(); },
   teacherLogout: () => teacherLogout(),
@@ -212,5 +217,5 @@ document.addEventListener('click', e => {
   if (S.game?.paused && el.closest('#game')) return toast('⏸ 선생님 설명 시간이에요. 잠깐 화면을 봐 주세요.');
   const f = ACT[el.dataset.act]; if (f) f(el.dataset);
 });
-document.addEventListener('change', e => { if (e.target.id === 'blockPick') S.blockPick = e.target.value; if (e.target.id === 'tariffAmt') S.tariffAmt = e.target.value; });
+document.addEventListener('change', e => { if (e.target.id === 'blockPick') S.blockPick = e.target.value; if (e.target.id === 'tariffAmt') S.tariffAmt = e.target.value; if (e.target.id === 'roundsPick') S.roundsPick = Number(e.target.value); });
 

@@ -322,3 +322,8 @@ pre{font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace}
 .opt.right{background:var(--green-soft);border-color:var(--green-edge);box-shadow:0 4px 0 var(--green-edge)}
 .opt.wrong{background:var(--red-soft);border-color:var(--red-edge);box-shadow:0 4px 0 var(--red-edge)}
 .opt[aria-pressed="true"]{background:var(--yellow-soft);border-color:var(--yellow-edge);box-shadow:0 4px 0 var(--yellow-edge)}
+/* 이름 · 값 두 칸 목록 (정리하기의 우리 나라 기록 등) */
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:10px 16px;align-items:start}
+.kv > b{font-weight:800;color:var(--ink-2);white-space:nowrap;padding-top:2px}
+.kv > span{min-width:0}
+@media (max-width:560px){.kv{grid-template-columns:1fr;gap:4px}.kv > b{margin-top:8px}}

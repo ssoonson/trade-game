@@ -8,7 +8,7 @@ const II = Object.fromEntries(ITEMS.map(x => [x.id, x]));
 const BI = Object.fromEntries(BUILDINGS.map(x => [x.id, x]));
 
 /* 앱 버전 — 고칠 때마다 올려요. 선생님 기기와 버전이 다르면 학생 화면에 '새로 고침' 안내가 떠요. */
-const APP_VERSION = '2026.11.24-2';
+const APP_VERSION = '2026.11.25-1';
 
 /* ================= 상태 ================= */
 const S = {
@@ -44,7 +44,7 @@ function cleanGame(d){
   if (!d || typeof d !== 'object') return null;
   const events = Array.isArray(d.events) ? d.events.filter(e => e && NI[e.nation] && (e.kind === 'block' || e.kind === 'tariff' || e.kind === 'fx' || (e.kind === 'res' && RES[e.res])))
     .map(e => ({r:Number(e.r)||0, kind:e.kind, nation:e.nation, res:e.kind === 'res' ? e.res : null, n:Math.max(-20, Math.min(20, Math.floor(Number(e.n)||0))), pid:typeof e.pid === 'string' ? e.pid : '', key:typeof e.key === 'string' ? e.key : '', auto:!!e.auto})) : [];
-  return {gid:typeof d.gid === 'string' ? d.gid : null, round:[0,1,2,3].includes(d.round) ? d.round : 0, tradeOpen:!!d.tradeOpen,
+  return {gid:typeof d.gid === 'string' ? d.gid : null, rounds:ROUND_CHOICES.includes(d.rounds) ? d.rounds : ROUND_DEFAULT, round:Number.isInteger(d.round) && d.round >= 0 && d.round <= 6 ? d.round : 0, tradeOpen:!!d.tradeOpen,
     phase:['lobby','play','end'].includes(d.phase) ? d.phase : 'lobby', endsAt:Number(d.endsAt) || null, events, quiz:cleanQuiz(d.quiz), v:typeof d.v === 'string' ? d.v.slice(0, 30) : '',
     paused:!!d.paused, pausedAt:Number(d.pausedAt) || null, pausedLeft:Number(d.pausedLeft) || null, news:!!d.news, startedAt:Number(d.startedAt) || null};
 }
@@ -90,6 +90,10 @@ function cleanMake(id, d){
 
 /* ================= 계산 ================= */
 const round = () => S.game?.round || 0;
+/* 이번 게임의 라운드 수와 라운드 이름 */
+const nRounds = () => ROUND_CHOICES.includes(S.game?.rounds) ? S.game.rounds : ROUND_DEFAULT;
+const roundList = () => Array.from({length:nRounds()}, (_, i) => i + 1);
+const roundInfo = r => ({t:`${r}라운드`, s:(ROUND_PLANS[nRounds()] || [])[r - 1] || '자유 무역'});
 const blockedIn = r => new Set((S.game?.events || []).filter(e => e.r === r && e.kind === 'block').map(e => e.nation));
 function inv(nid, r){
   // 라운드 시작 자원 = 기본 + 사건 + 공장 확장 + 선생님 문제 보상 (창고 크기까지만)
@@ -128,7 +132,7 @@ function score(nid, r){
   const fair = mine.reduce((s, t) => { const f = fairOf(t); return s + (f.kind === 'fair' ? FAIR.point : f.kind === 'unfair' && f.winner === nid ? -FAIR.point : 0); }, 0);
   return {pts, kinds, bonus, dev, quest, fta, fair, total:pts + bonus + dev + quest + fta + fair, count:ms.length};
 }
-const totalScore = nid => [1,2,3].reduce((s, r) => s + score(nid, r).total, 0) + goalBonus(nid);
+const totalScore = nid => roundList().reduce((s, r) => s + score(nid, r).total, 0) + goalBonus(nid);
 const roundTotal = r => NATIONS.reduce((s, n) => s + score(n.id, r).total, 0);
 const acceptedSorted = () => S.trades.filter(t => t.status === 'accepted').sort((a, b) => a.at - b.at);
 function contractNo(t){ const i = acceptedSorted().findIndex(x => x.id === t.id); return i < 0 ? '' : `무역 계약서 No.${String(i + 1).padStart(3, '0')}`; }

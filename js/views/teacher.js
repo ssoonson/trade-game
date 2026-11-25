@@ -36,7 +36,7 @@ function updateTeacher(){
   const g = S.game, r = round(), ok = !S.busy;
   const playingNow = g && g.phase === 'play';
   updateTeacherCounts(); updateShare();
-  const rbtn = n => `<button class="rbtn ${playingNow && r === n ? 'now' : ''}" data-act="round" data-r="${n}" ${ok ? '' : 'disabled'}><span><b>${ROUNDS[n].t}</b><br><span class="small muted">${ROUNDS[n].s}</span></span><span class="small">${playingNow && r === n ? '진행 중' : '시작'}</span></button>`;
+  const rbtn = n => `<button class="rbtn ${playingNow && r === n ? 'now' : ''}" data-act="round" data-r="${n}" ${ok ? '' : 'disabled'}><span><b>${roundInfo(n).t}</b><br><span class="small muted">${roundInfo(n).s}</span></span><span class="small">${playingNow && r === n ? '진행 중' : '시작'}</span></button>`;
   const evNow = (g?.events || []).filter(e => e.r === r);
   const evList = evNow.length ? evNow.map(e => { const x = evInfo(e); return `<div class="row" style="justify-content:space-between;padding:8px 10px;border-radius:8px;background:var(--surface-2)"><span><b>${e.auto ? '📰 ' : ''}${esc(x.t)}</b> <span class="small">${nTag(e.nation)}</span></span><button class="btn ghost sm" data-act="unevent" data-key="${esc(e.key)}" ${ok ? '' : 'disabled'}>취소</button></div>`; }).join('') : '<p class="muted small">이번 라운드에 발동한 사건이 없어요.</p>';
   const feed = acceptedSorted().slice(-8).reverse();
@@ -45,7 +45,8 @@ function updateTeacher(){
   <div class="teach">
     <section class="card" style="display:grid;gap:14px">
       <div class="row" style="justify-content:space-between"><h3>라운드 진행</h3><div class="row" style="gap:6px">${statusPills()}</div></div>
-      <div class="rounds">${rbtn(1)}${rbtn(2)}${rbtn(3)}</div>
+      <div class="row"><label class="small" for="roundsPick" style="font-weight:700">라운드 수</label><select id="roundsPick">${ROUND_CHOICES.map(n => `<option value="${n}" ${(S.roundsPick || nRounds()) === n ? 'selected' : ''}>${n}라운드${n === ROUND_DEFAULT ? ' (기본)' : ''}</option>`).join('')}</select><button class="btn ghost sm" data-act="setRounds" ${ok ? '' : 'disabled'}>정하기</button><span class="small muted">40분 한 차시는 4라운드, 두 차시는 5~6라운드를 권해요</span></div>
+      <div class="rounds">${roundList().map(rbtn).join('')}</div>
       <button class="btn ${g?.paused ? 'ok' : 'bad'}" data-act="pause" style="width:100%" ${playingNow && ok ? '' : 'disabled'}>${g?.paused ? '▶ 다시 시작 (학생 화면 풀기)' : '⏸ 모두 멈추기 (설명할 때)'}</button>
       <p class="small muted">라운드를 시작하면 모든 학생 캐릭터가 자기 나라 공장 앞으로 돌아가고 새 자원을 받아요.</p>
       <div class="row">
@@ -87,7 +88,7 @@ function updateTeacher(){
     <section class="card" style="display:grid;gap:14px"><h3>라운드별 점수 합계</h3>${roundBars()}</section>
     <section class="card" style="display:grid;gap:10px"><h3>최근 성공한 거래</h3>${feedHtml}</section>
   </div>
-  <section class="card" style="display:grid;gap:12px"><h3>40분 수업 흐름 예시</h3>
+  <section class="card" style="display:grid;gap:12px"><h3>수업 흐름 예시 (5라운드 · 두 차시)</h3>
     <ol class="flow">
       ${CLASS_FLOW.map(f => `<li><span class="t">${esc(f.time)}</span><span><b>${esc(f.title)}</b>: ${esc(f.text)}</span></li>`).join('')}
     </ol></section>`;

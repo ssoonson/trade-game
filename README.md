@@ -41,6 +41,7 @@ trade-game-web/
 | 주민 수·행복도·금 규칙, 부탁 보상 | `js/data/game-data.js` | `VILLAGE`, `GOLD_RATE`, `RESIDENT_NAMES` |
 | 창고 크기와 늘리는 값 | `js/data/game-data.js` | `STORAGE` |
 | 시장 기본 시세, 무역 협정 보너스, 관세 금액 | `js/data/game-data.js` | `BASE_PRICE`, `FTA`, `TARIFF_AMOUNTS` |
+| 라운드 수(기본 5)와 라운드 이름 | `js/data/game-data.js` | `ROUND_DEFAULT`, `ROUND_CHOICES`, `ROUND_PLANS` |
 | 비밀 목표, 선생님 문제 보상 | `js/data/game-data.js` | `GOALS`, `QUIZ_REWARD` |
 | 환율 금, 공정 무역 기준, 자동 뉴스 시간과 좋은 소식, 모둠 역할 | `js/data/game-data.js` | `FX`, `FAIR`, `AUTO_NEWS`, `GOOD_NEWS`, `ROLES` |
 | 선생님 문제 모음, 라운드 성찰 질문 | `js/data/lesson-content.js` | `QUIZ_BANK`, `REFLECT_QUESTIONS` |

@@ -3,16 +3,16 @@
 */
 /* ================= 화면: 정리하기 ================= */
 function roundBars(){
-  const vals = [1,2,3].map(roundTotal), max = Math.max(1, ...vals);
-  return `<div class="bars">${[1,2,3].map((r, i) => `<div class="bar"><div class="lab">${ROUNDS[r].t}<span>${ROUNDS[r].s}</span></div>
+  const rl = roundList(), vals = rl.map(roundTotal), max = Math.max(1, ...vals);
+  return `<div class="bars">${rl.map((r, i) => `<div class="bar"><div class="lab">${roundInfo(r).t}<span>${roundInfo(r).s}</span></div>
     <div class="track"><div class="fill" style="width:${(vals[i] / max * 100).toFixed(1)}%"></div></div><div class="val">${vals[i]}점</div></div>`).join('')}</div>`;
 }
 function scoreTable(){
   const rows = NATIONS.map(n => {
     const tc = S.trades.filter(t => t.status === 'accepted' && (t.from === n.id || t.to === n.id)).length;
-    return {n, s:[1,2,3].map(r => score(n.id, r).total), tot:totalScore(n.id), tc, e:econ(n.id), gb:goalBonus(n.id), bd:badgesOf(n.id).length, tb:tradeBalance(n.id).bal, bl:BUILDINGS.filter(B => builtOf(n.id, B.id)).map(B => B.i).join(' ')};
+    return {n, s:roundList().map(r => score(n.id, r).total), tot:totalScore(n.id), tc, e:econ(n.id), gb:goalBonus(n.id), bd:badgesOf(n.id).length, tb:tradeBalance(n.id).bal, bl:BUILDINGS.filter(B => builtOf(n.id, B.id)).map(B => B.i).join(' ')};
   }).sort((a, b) => b.tot - a.tot);
-  return `<div class="tablewrap"><table><thead><tr><th>나라</th><th>1라운드</th><th>2라운드</th><th>3라운드</th><th>합계</th><th>거래 수</th><th>주민</th><th>행복도</th><th>금</th><th>건물</th><th>목표</th><th>배지</th><th>무역 수지</th></tr></thead><tbody>
+  return `<div class="tablewrap"><table><thead><tr><th>나라</th>${roundList().map(r => `<th>${r}R</th>`).join('')}<th>합계</th><th>거래 수</th><th>주민</th><th>행복도</th><th>금</th><th>건물</th><th>목표</th><th>배지</th><th>무역 수지</th></tr></thead><tbody>
     ${rows.map(x => `<tr><td>${nTag(x.n.id)}</td>${x.s.map(v => `<td>${v}</td>`).join('')}<td class="tot">${x.tot}</td><td>${x.tc}</td><td>${x.e.res}명</td><td>${x.e.rate.face} ${x.e.hap}</td><td>${x.e.gold}</td><td>${x.bl || '-'}</td><td>${x.gb ? '✔' : '-'}</td><td>${x.bd}</td><td>${x.tb > 0 ? '+' + x.tb : x.tb}</td></tr>`).join('')}
   </tbody></table></div>`;
 }
@@ -40,7 +40,7 @@ function myRecord(){
   const madeHtml = Object.keys(made).length ? ITEMS.filter(it => made[it.id]).map(it => `<span class="chip">${it.i} ${it.name} ×${made[it.id]}</span>`).join('') : '<span class="muted small">없음</span>';
   return `<section class="card nc-${me}" style="display:grid;gap:12px">
     <div class="row" style="justify-content:space-between"><h3>${nTag(me)}의 무역 기록</h3><span class="pill acc">합계 ${totalScore(me)}점</span></div>
-    <div class="kv"><b>점수</b><span>${[1,2,3].map(r => `${r}라운드 ${score(me, r).total}점`).join(' · ')}</span>
+    <div class="kv"><b>점수</b><span>${roundList().map(r => `${r}라운드 ${score(me, r).total}점`).join(' · ')}</span>
     <b>거래</b><span>${acc.length}번 성공${best ? ` · 가장 많이 거래한 나라: ${NI[best[0]].name} (${best[1]}번)` : ''}</span>
     <b>수출</b><span class="cost">${bagChips(out)}</span>
     <b>수입</b><span class="cost">${bagChips(inn)}</span>
