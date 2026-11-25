@@ -22,20 +22,20 @@ const RES = {
    spec   : 잘 만드는 자원(특산 자원)
    income : 라운드마다 받는 자원과 개수
    animal : 탐험가 동물 (rabbit 토끼, penguin 펭귄, mole 두더지, fox 여우, bear 곰, cat 고양이 중 하나)
-   color  : 탐험가 스카프·지붕 색 / ground, ground2 : 땅 색 / decor : 땅에 흩어 놓는 그림 */
+   color  : 탐험가 스카프·지붕 색 / ground, ground2 : 땅 색 (지도 위 나무·꽃 같은 소품은 js/scenery.js 의 PROPS 에서 정해요) */
 const NATIONS = [
   {id:'field',  name:'들판나라', flag:'🌾', animal:'rabbit', spec:'grain', desc:'넓은 평야에서 곡식이 잘 자라요.',
-   income:{grain:8, oil:1},        color:'#c99a1c', ground:'#cfe08a', ground2:'#bcd277', decor:['🌾','🌾','🌻','🐄','🌾']},
+   income:{grain:8, oil:1},        color:'#c99a1c', ground:'#cfe08a', ground2:'#bcd277'},
   {id:'wave',   name:'파도나라', flag:'🌊', animal:'penguin', spec:'fish',  desc:'바다로 둘러싸인 섬나라예요. 물고기가 많이 잡혀요.',
-   income:{fish:8, grain:1},       color:'#1f78c1', ground:'#f1e2b3', ground2:'#e6d39c', decor:['🐚','🦀','🌴','🎣','🐟']},
+   income:{fish:8, grain:1},       color:'#1f78c1', ground:'#f1e2b3', ground2:'#e6d39c'},
   {id:'rock',   name:'바위나라', flag:'⛰️', animal:'mole', spec:'ore',   desc:'산이 많고 땅속에 광물이 풍부해요.',
-   income:{ore:8, wood:2},         color:'#7d6553', ground:'#bfb3a3', ground2:'#ad9f8d', decor:['🪨','⛰️','⛏️','🪨','💎']},
+   income:{ore:8, wood:2},         color:'#7d6553', ground:'#bfb3a3', ground2:'#ad9f8d'},
   {id:'fire',   name:'불꽃나라', flag:'🔥', animal:'fox', spec:'oil',   desc:'사막 아래에 석유가 가득해요.',
-   income:{oil:8, grain:2},        color:'#d4500f', ground:'#eec08a', ground2:'#e2ad72', decor:['🛢️','🌵','🐪','🛢️','🌵']},
+   income:{oil:8, grain:2},        color:'#d4500f', ground:'#eec08a', ground2:'#e2ad72'},
   {id:'forest', name:'숲나라',   flag:'🌲', animal:'bear', spec:'wood',  desc:'울창한 숲이 나라를 덮고 있어요.',
-   income:{wood:8, ore:1},         color:'#2c8048', ground:'#7fbf74', ground2:'#6fae64', decor:['🌲','🌳','🍄','🌲','🦌']},
+   income:{wood:8, ore:1},         color:'#2c8048', ground:'#7fbf74', ground2:'#6fae64'},
   {id:'gear',   name:'톱니나라', flag:'⚙️', animal:'cat', spec:'chip',  desc:'자원은 적지만 기술이 뛰어나요.',
-   income:{chip:8, ore:1, grain:1}, color:'#6a55d6', ground:'#c9cbdc', ground2:'#b9bbcf', decor:['⚙️','🔩','💡','🤖','🏢']},
+   income:{chip:8, ore:1, grain:1}, color:'#6a55d6', ground:'#c9cbdc', ground2:'#b9bbcf'},
 ];
 
 /* 공장에서 만드는 물건: cost = 필요한 자원, pt = 점수 */

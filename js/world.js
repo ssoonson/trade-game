@@ -13,80 +13,6 @@ function sign(g, text, x, y, color, size=16){
   g.strokeStyle = color; g.lineWidth = 3; g.stroke();
   g.fillStyle = '#4b3424'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, x, y + 1);
 }
-function buildBase(){
-  const c = document.createElement('canvas'); c.width = W * T; c.height = H * T;
-  const g = c.getContext('2d'), R = rng(7);
-  g.fillStyle = '#58c6dc'; g.fillRect(0, 0, c.width, c.height);
-  // 잔물결
-  g.strokeStyle = 'rgba(255,255,255,.45)'; g.lineWidth = 3; g.lineCap = 'round';
-  for (let i = 0; i < 220; i++){ const x = R() * c.width, y = R() * c.height; g.beginPath(); g.moveTo(x - 9, y); g.quadraticCurveTo(x - 4.5, y - 5, x, y); g.quadraticCurveTo(x + 4.5, y + 5, x + 9, y); g.stroke(); }
-  // 섬과 광장: 둥근 모래 해안 위에 둥근 땅
-  const areas = [{x:2, y:14, w:42, h:6, plaza:true}, ...NATIONS.map(n => ({x:n.rx, y:n.ry, w:12, h:10, n}))];
-  for (const a of areas){
-    g.fillStyle = 'rgba(30,110,140,.25)'; roundRect(g, a.x * T - 10, a.y * T - 4, a.w * T + 20, a.h * T + 20, 34); g.fill();
-    g.fillStyle = '#f7e6b8'; roundRect(g, a.x * T - 10, a.y * T - 10, a.w * T + 20, a.h * T + 20, 34); g.fill();
-  }
-  for (const a of areas){
-    g.save(); roundRect(g, a.x * T, a.y * T, a.w * T, a.h * T, 24); g.clip();
-    for (let y = a.y; y < a.y + a.h; y++) for (let x = a.x; x < a.x + a.w; x++){
-      const px = x * T, py = y * T;
-      if (a.plaza){ g.fillStyle = ((x + y) % 2) ? '#f1e3c1' : '#eadab3'; g.fillRect(px, py, T, T); g.strokeStyle = 'rgba(160,125,80,.18)'; g.lineWidth = 1; g.strokeRect(px + .5, py + .5, T - 1, T - 1); }
-      else { g.fillStyle = (R() < .5) ? a.n.ground : a.n.ground2; g.fillRect(px, py, T, T); }
-    }
-    g.restore();
-    g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 3; roundRect(g, a.x * T + 1.5, a.y * T + 1.5, a.w * T - 3, a.h * T - 3, 23); g.stroke();
-  }
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++){
-    if (tmap[ix(x, y)] !== BRIDGE) continue;
-    const px = x * T, py = y * T;
-    g.fillStyle = '#c08a55'; g.fillRect(px, py - 4, T, T + 8); g.fillStyle = '#a16f3f'; for (let k = 0; k < 5; k++) g.fillRect(px, py + k * 8 - 2, T, 2);
-    g.fillStyle = '#7a5130'; g.fillRect(px, py - 4, 3, T + 8); g.fillRect(px + T - 3, py - 4, 3, T + 8);
-  }
-  // 바닥 글씨
-  g.save(); g.globalAlpha = .22; g.fillStyle = '#5b4a2e'; g.font = '44px Jua, "Noto Sans KR", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('무역 광장', 15.5 * T, 17 * T); g.restore();
-  NATIONS.forEach(n => {
-    const R2 = rng(n.idx * 97 + 3);
-    for (let i = 0; i < 26; i++){
-      const x = n.rx + .6 + R2() * 10.8, y = n.ry + .6 + R2() * 8.8;
-      if (Math.abs(x - (n.rx + 6)) < 2.6 && y > n.ry + 1.8 && y < n.ry + 8.2) continue;
-      if (Math.abs(x - (n.rx + 6)) < 2 && (n.top ? y > n.ry + 8 : y < n.ry + 2)) continue;
-      if (x < n.rx + 5 && y < n.ry + 1.8) continue;
-      if (n.plots.some(p => Math.abs(x - p.x) < 1.7 && Math.abs(y - p.y) < 1.5)) continue;
-      emoji(g, n.decor[i % n.decor.length], x * T, y * T, 20);
-    }
-    // 성(공장)
-    const bx = (n.rx + 5) * T, by = (n.ry + 3) * T;
-    g.fillStyle = 'rgba(0,0,0,.22)'; g.fillRect(bx + 4, by + 8, 2 * T, 2 * T);
-    g.fillStyle = '#f6f0e4'; g.fillRect(bx, by + 6, 2 * T, 2 * T - 6);
-    g.strokeStyle = '#5a4a3a'; g.lineWidth = 2; g.strokeRect(bx, by + 6, 2 * T, 2 * T - 6);
-    g.fillStyle = n.color; g.beginPath(); g.moveTo(bx - 8, by + 10); g.lineTo(bx + T, by - 22); g.lineTo(bx + 2 * T + 8, by + 10); g.closePath(); g.fill(); g.stroke();
-    g.fillStyle = '#6e4a2a'; roundRect(g, bx + T - 9, by + 2 * T - 22, 18, 22, 6); g.fill();
-    g.fillStyle = '#9fd3f0'; g.fillRect(bx + 8, by + 20, 12, 10); g.fillRect(bx + 2 * T - 20, by + 20, 12, 10);
-    emoji(g, '🏭', bx + T, by - 4, 18);
-    sign(g, `${n.flag} ${n.name}`, (n.rx + 2.6) * T, (n.ry + .9) * T, n.color, 18);
-    sign(g, '공장', bx + T, by + 2 * T + 12, n.color, 13);
-    // 건물 자리 (공사 예정지)
-    for (const p of n.plots){
-      const px = p.x * T, py = p.y * T;
-      g.fillStyle = 'rgba(150,110,60,.28)'; roundRect(g, px - 30, py - 20, 60, 34, 10); g.fill();
-      g.setLineDash([5, 4]); g.strokeStyle = 'rgba(110,80,40,.6)'; g.lineWidth = 2; g.stroke(); g.setLineDash([]);
-    }
-    // 세관(거래소)
-    const sx = n.stall.x * T, sy = n.stall.y * T;
-    g.fillStyle = 'rgba(0,0,0,.2)'; g.fillRect(sx - 30, sy - 2, 64, 18);
-    g.fillStyle = '#b98a58'; g.fillRect(sx - 32, sy - 6, 64, 16);
-    for (let k = 0; k < 6; k++){ g.fillStyle = k % 2 ? '#ffffff' : n.color; g.fillRect(sx - 34 + k * 11.4, sy - 34, 11.4, 14); }
-    g.fillStyle = '#6e4a2a'; g.fillRect(sx - 32, sy - 20, 4, 16); g.fillRect(sx + 28, sy - 20, 4, 16);
-    sign(g, `${n.flag} 세관`, sx, sy - 46, n.color, 13);
-  });
-  // 게시판
-  const gx = BOARD.x * T, gy = BOARD.y * T;
-  g.fillStyle = '#6e4a2a'; g.fillRect(gx - 22, gy - 8, 5, 22); g.fillRect(gx + 17, gy - 8, 5, 22);
-  g.fillStyle = '#c89a62'; g.fillRect(gx - 28, gy - 40, 56, 34); g.strokeStyle = '#6e4a2a'; g.lineWidth = 3; g.strokeRect(gx - 28, gy - 40, 56, 34);
-  g.fillStyle = '#fffaf0'; g.fillRect(gx - 20, gy - 34, 16, 20); g.fillRect(gx + 2, gy - 32, 18, 14);
-  sign(g, '📜 게시판', gx, gy - 56, '#6e4a2a', 13);
-  base = c;
-}
 /* 지은 건물 그리기 */
 function drawBuilding(g, cx, cy, B, color, t, grow){
   g.save(); g.translate(cx, cy); g.scale(grow, grow);
@@ -142,7 +68,7 @@ function drawWorld(cv, mode, dt, t){
   if (!cw || !ch) return null;
   if (cv.width !== Math.round(cw * dpr) || cv.height !== Math.round(ch * dpr)){ cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr); }
   const g = cv.getContext('2d');
-  g.setTransform(dpr, 0, 0, dpr, 0, 0); g.fillStyle = '#58c6dc'; g.fillRect(0, 0, cw, ch);
+  g.setTransform(dpr, 0, 0, dpr, 0, 0); g.fillStyle = SEA; g.fillRect(0, 0, cw, ch);
   let z, camX, camY;
   if (mode === 'follow'){
     z = Math.max(.75, Math.min(1.6, Math.min(cw / (17 * T), ch / (12 * T))));
@@ -151,7 +77,7 @@ function drawWorld(cv, mode, dt, t){
     camY = vh >= wh ? wh / 2 : Math.max(vh / 2, Math.min(wh - vh / 2, (P.y - .6) * T));
   } else { z = Math.min(cw / (W * T), ch / (H * T)); camX = W * T / 2; camY = H * T / 2; }
   g.translate(cw / 2 - camX * z, ch / 2 - camY * z); g.scale(z, z);
-  g.imageSmoothingEnabled = true; g.drawImage(base, 0, 0);
+  g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(base, 0, 0, W * T, H * T);
   drawBuildings(g, t);
   drawResidents(g, t);
   drawGates(g, t);
