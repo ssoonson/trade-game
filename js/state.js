@@ -8,7 +8,7 @@ const II = Object.fromEntries(ITEMS.map(x => [x.id, x]));
 const BI = Object.fromEntries(BUILDINGS.map(x => [x.id, x]));
 
 /* 앱 버전 — 고칠 때마다 올려요. 선생님 기기와 버전이 다르면 학생 화면에 '새로 고침' 안내가 떠요. */
-const APP_VERSION = '2026.11.25-2';
+const APP_VERSION = '2026.11.26-1';
 
 /* ================= 상태 ================= */
 const S = {
@@ -16,7 +16,7 @@ const S = {
   game:null, trades:[], makes:[], builds:[], plans:{}, planDraft:null, qdone:[], hires:[], ftas:[], upgrades:[], answers:[], notes:{}, rev:0, summaryShown:'',
   me:null, nick:'', role:'', view:'game', canTeach:false, canWrite:null, busy:false,
   draft:{to:'', give:{}, get:{}}, blockPick:'field', confirmReset:false,
-  sheet:null, picker:false, players:{}, online:null, offset:0, join:null, fbError:false, setupMsg:'', setupBusy:false, pickSel:null, near:null, seenEvents:new Set(), banner:null,
+  sheet:null, picker:false, players:{}, online:null, offset:0, join:null, fbError:false, setupMsg:'', setupBusy:false, pickSel:null, near:null, seenEvents:new Set(), opened:new Set(), banner:null,
 };
 try { const m = localStorage.getItem('trade-me'); if (NI[m]) S.me = m; S.nick = (localStorage.getItem('trade-nick') || '').slice(0, NICK_MAX); const ro = localStorage.getItem('trade-role'); if (RO[ro]) S.role = ro; } catch {}
 const P = {x:0, y:0, dir:'down', moving:false, target:null, t:0};
@@ -93,7 +93,8 @@ const round = () => S.game?.round || 0;
 /* 이번 게임의 라운드 수와 라운드 이름 */
 const nRounds = () => ROUND_CHOICES.includes(S.game?.rounds) ? S.game.rounds : ROUND_DEFAULT;
 const roundList = () => Array.from({length:nRounds()}, (_, i) => i + 1);
-const roundInfo = r => ({t:`${r}라운드`, s:(ROUND_PLANS[nRounds()] || [])[r - 1] || '자유 무역'});
+const roundStage = r => (ROUND_PLANS[nRounds()] || [])[r - 1] || 'free';
+const roundInfo = r => ({t:`${r}라운드`, s:(ROUND_GUIDE[roundStage(r)] || ROUND_GUIDE.free).title, stage:roundStage(r)});
 const blockedIn = r => new Set((S.game?.events || []).filter(e => e.r === r && e.kind === 'block').map(e => e.nation));
 function inv(nid, r){
   // 라운드 시작 자원 = 기본 + 사건 + 공장 확장 + 선생님 문제 보상 (창고 크기까지만)

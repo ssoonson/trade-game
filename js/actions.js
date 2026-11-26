@@ -20,7 +20,7 @@ async function guarded(fn){
   finally { clearTimeout(slow); S.busy = false; render(); }
 }
 function setGame(patch){ const g = {...(S.game || {gid:null, round:0, tradeOpen:false, phase:'lobby', endsAt:null, events:[]}), ...patch, v:APP_VERSION}; return guarded(() => store.setGame(g)); }
-function openSheet(s){ S.sheet = s; if (s && s.type === 'trade'){ if (S.draft.to !== s.to) S.draft = {to:s.to, give:{}, get:{}}; } if (s && s.type === 'plan'){ const p = planOf(S.me); S.planDraft = p ? {target:p.target, from:{...p.from}} : (S.planDraft || {target:'', from:{}}); } keys.clear(); P.target = null; render(); }
+function openSheet(s){ S.sheet = s; if (s) S.opened.add(s.type); if (s && s.type === 'trade'){ if (S.draft.to !== s.to) S.draft = {to:s.to, give:{}, get:{}}; } if (s && s.type === 'plan'){ const p = planOf(S.me); S.planDraft = p ? {target:p.target, from:{...p.from}} : (S.planDraft || {target:'', from:{}}); } keys.clear(); P.target = null; render(); }
 
 const ACT = {
   view: d => { location.hash = d.v; },
@@ -41,7 +41,7 @@ const ACT = {
   },
   /* 세계 */
   interact: () => { if (S.near) S.near.go(); },
-  sheet: d => { if (['offers', 'board', 'plan', 'quiz', 'nation'].includes(d.t)) openSheet({type:d.t}); },
+  sheet: d => { if (['offers', 'board', 'plan', 'quiz', 'nation', 'guide'].includes(d.t)) openSheet({type:d.t}); },
   reload: () => location.reload(),
   close: () => { S.sheet = null; render(); $('#world')?.focus(); },
   make: d => {

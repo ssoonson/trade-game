@@ -63,6 +63,7 @@ function updateGame(){
       <span class="glass scorebox"><span class="medal">${icon('star')}</span><span class="score">${sc}점</span><span class="small muted long">이번 라운드 · 합계 ${totalScore(S.me)}점</span></span>
       <button class="hbtn ${ic ? 'hot' : ''}" data-act="sheet" data-t="offers">${icon('mail')}<span>제안</span>${ic ? `<span class="badge">${ic}</span>` : ''}</button>
       ${quizOpen() && !quizAnsweredHere(quizOpen().id) ? `<button class="hbtn hot" data-act="sheet" data-t="quiz">❓<span>문제</span></button>` : ''}
+      ${r && S.game?.phase === 'play' ? (() => { const gp = guideProgress(S.me, r); return `<button class="hbtn ${gp.done < gp.all ? '' : 'done'}" data-act="sheet" data-t="guide" aria-label="이번 라운드 할 일">${icon('flag')}<span class="long">할 일</span><span class="badge ${gp.done >= gp.all ? 'ok' : 'todo'}">${gp.done}/${gp.all}</span></button>`; })() : ''}
       <button class="hbtn" data-act="sheet" data-t="nation" aria-label="우리 나라">${icon('star')}<span class="long">우리 나라</span></button>
       <button class="hbtn ${r === 1 && !planOf(S.me) && S.game?.phase === 'play' ? 'hot' : ''}" data-act="sheet" data-t="plan" aria-label="무역 계획서">${icon('note')}<span class="long">계획서</span></button>
       <button class="hbtn" data-act="sheet" data-t="board" aria-label="규칙">${icon('scroll')}<span class="long">규칙</span></button>
@@ -86,6 +87,12 @@ function updateGame(){
     lines.push(`이번 라운드에는 주민 ${ev.rounds[r].startRes}명이 금 ${ev.rounds[r].income}개를 냈어요.`);
     showNotice(prev.left ? '😢' : '🏠', `${r - 1}라운드 마을 결과`, lines.join(' '));
     if (!S.notes[S.me + '_' + (r - 1)]) S.sheet = {type:'reflect', r:r - 1};
+  }
+  // 라운드가 시작되면 "이번 라운드에 할 일" 창을 한 번 열어요 (성찰 창이 먼저 열려 있으면 닫은 뒤에)
+  const guideKey = 'trade-guide:' + (S.game?.gid || '') + ':' + r;
+  if (r && S.game?.phase === 'play' && !S.sheet && !S.picker && S.guideShown !== guideKey){
+    S.guideShown = guideKey; let seenG = false; try { seenG = localStorage.getItem(guideKey) === '1'; localStorage.setItem(guideKey, '1'); } catch {}
+    if (!seenG){ S.sheet = {type:'guide'}; S.opened.add('guide'); }
   }
   $('#pause').hidden = !S.game?.paused;
   // 사건 알림
@@ -143,6 +150,7 @@ function sheetHtml(){
   if (s.type === 'quiz') return head('선생님 문제', `맞히면 ${NI[S.me].name}에 ${RES[NI[S.me].spec][1]} ${RES[NI[S.me].spec][0]} +${QUIZ_REWARD.perAnswer}`) + quizHtml();
   if (s.type === 'nation') return head(`${NI[S.me].flag} ${NI[S.me].name}`, '비밀 목표 · 배지 · 협정') + nationHtml();
   if (s.type === 'reflect') return head(`${s.r}라운드 돌아보기`, '모둠 친구들과 이야기하고 한 줄로 적어요') + reflectHtml(s.r);
+  if (s.type === 'guide') return head(`${r}라운드 안내`, `${roundInfo(r).s} · 전체 ${nRounds()}라운드`) + guideHtml(r);
   if (s.type === 'plan') return head(`${NI[S.me].name} 무역 계획서`, '무엇을 만들고, 모자란 자원을 어느 나라에서 구할지 정해요') + planHtml(r);
   return head('');
 }
@@ -403,4 +411,16 @@ function roleHtml(){
   const tr = teamRoles(S.me);
   return `<div class="sect"><span class="label">👥 우리 모둠 역할</span><div class="list">${ROLES.map(x => `<div class="offer ${tr[x.id] ? '' : 'incoming'}"><b>${x.i} ${x.t}${S.role === x.id ? ' (나)' : ''}</b><span class="small">${esc(x.text)}</span><span class="small ${tr[x.id] ? '' : 'muted'}">${tr[x.id] ? '맡은 친구: ' + tr[x.id].map(esc).join(', ') : '아직 아무도 안 맡았어요'}</span></div>`).join('')}</div>
     <p class="small muted">역할은 화면 위 <b>나라 바꾸기</b>에서 바꿀 수 있어요. 역할이 달라도 모든 버튼을 쓸 수 있어요.</p></div>`;
+}
+
+function guideHtml(r){
+  const np = needPlay(); if (np) return np;
+  const g = guideOf(r), gp = guideProgress(S.me, r), evs = (S.game.events || []).filter(e => e.r === r).length;
+  const rows = g.todo.map(([text, key]) => { const ok = key ? guideCheck(key, S.me, r) : null; return `<li class="${ok ? 'done' : ''}"><span class="ck" aria-hidden="true">${ok ? '✔' : ''}</span><span>${esc(text)}</span>${ok ? '<span class="sr">완료</span>' : ''}</li>`; }).join('');
+  return `<div class="talk"><span class="who-ic"><img src="${animalPortrait(S.me)}" alt=""></span><p class="bubble"><b>이번 라운드 목표</b><br>${esc(g.goal)}</p></div>
+    <div class="cost"><span class="chip ${S.game.tradeOpen ? 'done' : 'short'}">${S.game.tradeOpen ? '🌉 다리 열림 · 무역 가능' : '🚧 다리 닫힘 · 무역 금지'}</span>${evs ? `<span class="chip">📰 게시판 새 소식 ${evs}개</span>` : ''}${r === nRounds() ? '<span class="chip gold">🏁 마지막 라운드</span>' : ''}</div>
+    <div class="sect"><span class="label">이번 라운드에 할 일 · ${gp.done}/${gp.all} 해냈어요</span><ol class="checks">${rows}</ol>
+    <p class="small muted">해낸 일은 저절로 ✔ 표시가 돼요. 이 창은 화면 위 <b>할 일</b> 버튼으로 다시 열 수 있어요.</p></div>
+    <p class="lockbox">💡 ${esc(g.tip)}</p>
+    <div class="row"><button class="btn" data-act="close">알겠어요, 출발!</button></div>`;
 }

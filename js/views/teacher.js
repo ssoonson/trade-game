@@ -48,6 +48,7 @@ function updateTeacher(){
       <div class="row"><label class="small" for="roundsPick" style="font-weight:700">라운드 수</label><select id="roundsPick">${ROUND_CHOICES.map(n => `<option value="${n}" ${(S.roundsPick || nRounds()) === n ? 'selected' : ''}>${n}라운드${n === ROUND_DEFAULT ? ' (기본)' : ''}</option>`).join('')}</select><button class="btn ghost sm" data-act="setRounds" ${ok ? '' : 'disabled'}>정하기</button><span class="small muted">40분 한 차시는 4라운드, 두 차시는 5~6라운드를 권해요</span></div>
       <div class="rounds">${roundList().map(rbtn).join('')}</div>
       <button class="btn ${g?.paused ? 'ok' : 'bad'}" data-act="pause" style="width:100%" ${playingNow && ok ? '' : 'disabled'}>${g?.paused ? '▶ 다시 시작 (학생 화면 풀기)' : '⏸ 모두 멈추기 (설명할 때)'}</button>
+      ${(() => { const cur = playingNow ? r : 0, nx = cur + 1 <= nRounds() ? cur + 1 : 0; const box = (n, label) => { const gd = guideOf(n); return `<div class="offer ${label === '지금' ? 'incoming' : ''}"><b>${label} · ${n}라운드 ${esc(gd.title)}</b><span class="small"><b>학생 목표</b> ${esc(gd.goal)}</span><ul class="qs small">${gd.teacher.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>`; }; return `<div class="list">${cur ? box(cur, '지금') : ''}${nx ? box(nx, cur ? '다음' : '처음') : ''}</div>`; })()}
       <p class="small muted">라운드를 시작하면 모든 학생 캐릭터가 자기 나라 공장 앞으로 돌아가고 새 자원을 받아요.</p>
       <div class="row">
         <button class="btn ghost" data-act="trade" ${playingNow && ok ? '' : 'disabled'}>${g?.tradeOpen ? '무역 막기 (다리 닫기)' : '무역 열기 (다리 열기)'}</button>

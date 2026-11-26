@@ -192,3 +192,26 @@ function teamRoles(nid){
   if (S.me === nid && S.role && S.mode !== 'shared') (out[S.role] = out[S.role] || []).push(S.nick || '나');
   return out;
 }
+
+/* ---------- 라운드 안내: 할 일 자동 확인 ---------- */
+function guideCheck(key, nid, r){
+  const acc = S.trades.filter(t => t.r === r && t.status === 'accepted' && (t.from === nid || t.to === nid));
+  switch (key){
+    case 'make': return S.makes.some(m => m.nation === nid && m.r === r);
+    case 'kinds3': return score(nid, r).kinds >= BONUS_KINDS;
+    case 'quest': return questDoneIn(nid, r).length > 0;
+    case 'questAll': { const n = questsOf(nid, r).length; return n > 0 && questDoneIn(nid, r).length >= n; }
+    case 'plan': return !!planOf(nid);
+    case 'role': return !!S.role;
+    case 'trade': return acc.length > 0;
+    case 'fair': return acc.some(t => fairOf(t).kind === 'fair');
+    case 'fta': return ftaPartners(nid).length > 0;
+    case 'build': return S.builds.some(x => x.nation === nid && x.r === r);
+    case 'hire': return S.hires.some(x => x.nation === nid && x.r === r) || S.upgrades.some(x => x.nation === nid && x.r === r);
+    case 'goal': return S.opened.has('nation') || !!goalProgress(nid)?.done;
+    case 'note': return r <= 1 || !!S.notes[nid + '_' + (r - 1)];
+    default: return null;
+  }
+}
+const guideOf = r => ROUND_GUIDE[roundStage(r)] || ROUND_GUIDE.free;
+function guideProgress(nid, r){ const g = guideOf(r), ks = g.todo.filter(x => x[1]); return {done:ks.filter(x => guideCheck(x[1], nid, r)).length, all:ks.length}; }

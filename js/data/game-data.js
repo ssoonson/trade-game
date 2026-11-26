@@ -57,11 +57,12 @@ const BONUS_KINDS = 3;
    1라운드는 무역 금지, 2라운드부터 무역이 자동으로 열려요. */
 const ROUND_DEFAULT = 5;
 const ROUND_CHOICES = [3, 4, 5, 6];
+/* 라운드 수마다 각 라운드가 어떤 단계인지 (단계 이름·안내는 js/data/lesson-content.js 의 ROUND_GUIDE) */
 const ROUND_PLANS = {
-  3: ['혼자 생산하기 · 무역 금지', '자유 무역', '사건 발생'],
-  4: ['혼자 생산하기 · 무역 금지', '자유 무역', '위기와 갈등', '마무리 무역'],
-  5: ['혼자 생산하기 · 무역 금지', '자유 무역', '무역 확대 · 나라 개발', '위기와 갈등', '마무리 무역'],
-  6: ['혼자 생산하기 · 무역 금지', '자유 무역', '무역 확대 · 나라 개발', '위기와 갈등', '협력과 회복', '마무리 무역'],
+  3: ['solo', 'free', 'crisis'],
+  4: ['solo', 'free', 'crisis', 'final'],
+  5: ['solo', 'free', 'grow', 'crisis', 'final'],
+  6: ['solo', 'free', 'grow', 'crisis', 'recover', 'final'],
 };
 
 /* 선생님 사건 카드

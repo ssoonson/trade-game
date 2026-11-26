@@ -327,3 +327,13 @@ pre{font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace}
 .kv > b{font-weight:800;color:var(--ink-2);white-space:nowrap;padding-top:2px}
 .kv > span{min-width:0}
 @media (max-width:560px){.kv{grid-template-columns:1fr;gap:4px}.kv > b{margin-top:8px}}
+/* 라운드 안내: 할 일 목록 */
+.checks{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.checks li{display:grid;grid-template-columns:32px 1fr;gap:10px;align-items:center;padding:10px 12px;border-radius:var(--r-sm);background:var(--well);border:2px solid var(--edge);font-weight:500}
+.checks .ck{width:28px;height:28px;border-radius:50%;border:3px solid var(--edge-dark);background:var(--panel);display:grid;place-items:center;font-family:var(--display);color:#fff;font-size:1rem}
+.checks li.done{background:var(--green-soft);border-color:var(--green-edge)}
+.checks li.done .ck{background:var(--green);border-color:var(--green-edge)}
+.checks li.done > span:nth-child(2){color:var(--green-ink)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.hbtn .badge.ok{background:var(--green)}
+.hbtn .badge.todo{background:var(--yellow);color:var(--ink)}
