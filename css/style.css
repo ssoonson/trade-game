@@ -337,3 +337,17 @@ pre{font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .hbtn .badge.ok{background:var(--green)}
 .hbtn .badge.todo{background:var(--yellow);color:var(--ink)}
+/* 교사용 안내 */
+.tguide summary{cursor:pointer;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;list-style:none}
+.tguide summary::-webkit-details-marker{display:none}
+.tguide summary h3::after{content:" ▾";color:var(--ink-2)}
+.tguide details[open] summary h3::after{content:" ▴"}
+.tguide details[open] summary{margin-bottom:6px}
+.tguide .sect{margin-top:14px}
+.tguide h4{font-family:var(--display);font-size:1.15rem;margin:0 0 8px;color:var(--ink)}
+@media print{
+  body.print-guide > *:not(main), body.print-guide main > *:not(#tguide){display:none!important}
+  body.print-guide{background:#fff}
+  body.print-guide #tguide{box-shadow:none;border:0;padding:0}
+  body.print-guide #tguide button, body.print-guide #tguide summary .muted{display:none}
+}

@@ -44,6 +44,7 @@ trade-game-web/
 | 지도 소품(나무·꽃·바위)과 절벽 색 | `js/scenery.js` | `PROPS`, `CLIFF`, `PROP_SCALE` |
 | 라운드 수(기본 5)와 라운드 이름 | `js/data/game-data.js` | `ROUND_DEFAULT`, `ROUND_CHOICES`, `ROUND_PLANS` (단계 순서) |
 | 라운드별 안내(학생 할 일, 선생님 할 일) | `js/data/lesson-content.js` | `ROUND_GUIDE` |
+| 교사용 안내 (선생님 화면, 인쇄 가능) | `js/data/lesson-content.js` | `TEACHER_GUIDE` |
 | 비밀 목표, 선생님 문제 보상 | `js/data/game-data.js` | `GOALS`, `QUIZ_REWARD` |
 | 환율 금, 공정 무역 기준, 자동 뉴스 시간과 좋은 소식, 모둠 역할 | `js/data/game-data.js` | `FX`, `FAIR`, `AUTO_NEWS`, `GOOD_NEWS`, `ROLES` |
 | 선생님 문제 모음, 라운드 성찰 질문 | `js/data/lesson-content.js` | `QUIZ_BANK`, `REFLECT_QUESTIONS` |

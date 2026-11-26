@@ -8,6 +8,10 @@ function mountTeacher(){
     <div class="row" style="justify-content:space-between"><div><h2>실시간 무역 지도</h2><p class="sub">전자칠판에 띄워 반 전체와 함께 보세요</p></div><div class="counts" id="tcounts"></div></div>
     <div class="tmapbox"><canvas id="tmap" aria-label="모든 학생의 위치가 보이는 전체 지도"></canvas></div>
   </section>${shareCard()}
+  <section class="card tguide" id="tguide"><details ${S.guideOpen ? 'open' : ''}><summary><h3>📘 교사용 안내</h3><span class="small muted">처음이라면 수업 전에 먼저 읽어 주세요 · 눌러서 펼치기</span></summary>
+    <div class="row" style="justify-content:flex-end"><button class="btn ghost sm" data-act="printGuide">인쇄하기</button></div>
+    ${TEACHER_GUIDE.map(([t, items]) => `<div class="sect"><h4>${esc(t)}</h4><ul class="qs">${items.map(x => `<li>${esc(x).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')}</li>`).join('')}</ul></div>`).join('')}
+  </details></section>
   <section class="card" style="display:grid;gap:12px"><div class="row" style="justify-content:space-between"><h3>❓ 학생들에게 문제 내기</h3><span class="small muted">맞힌 학생의 나라는 특산 자원 +${QUIZ_REWARD.perAnswer} (나라마다 문제당 최대 ${QUIZ_REWARD.maxPerNation}번)</span></div>
     <div id="quizStatus"></div>
     <div class="evgrid">${QUIZ_BANK.map((q, i) => `<button class="evbtn" data-act="quizPost" data-i="${i}"><b>문제 ${i + 1}</b><span>${esc(q.q)}</span></button>`).join('')}</div>

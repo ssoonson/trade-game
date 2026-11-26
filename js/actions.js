@@ -43,6 +43,7 @@ const ACT = {
   interact: () => { if (S.near) S.near.go(); },
   sheet: d => { if (['offers', 'board', 'plan', 'quiz', 'nation', 'guide'].includes(d.t)) openSheet({type:d.t}); },
   reload: () => location.reload(),
+  printGuide: () => { const d = $('#tguide details'); if (d) d.open = true; document.body.classList.add('print-guide'); window.print(); setTimeout(() => document.body.classList.remove('print-guide'), 500); },
   close: () => { S.sheet = null; render(); $('#world')?.focus(); },
   make: d => {
     const it = II[d.id], r = round(); if (!it || !playing() || !S.me) return;

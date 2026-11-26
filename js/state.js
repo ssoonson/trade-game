@@ -8,7 +8,7 @@ const II = Object.fromEntries(ITEMS.map(x => [x.id, x]));
 const BI = Object.fromEntries(BUILDINGS.map(x => [x.id, x]));
 
 /* 앱 버전 — 고칠 때마다 올려요. 선생님 기기와 버전이 다르면 학생 화면에 '새로 고침' 안내가 떠요. */
-const APP_VERSION = '2026.11.26-1';
+const APP_VERSION = '2026.11.26-2';
 
 /* ================= 상태 ================= */
 const S = {
